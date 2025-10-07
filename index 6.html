@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Premium Vectorizer — Standalone (v2.4)</title>
+  <meta name="description" content="Browser-based raster to SVG vectorizer with presets and color-safe text cleanup." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html,body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    .card{border-radius:1rem;border:1px solid rgba(255,255,255,0.06);background:rgba(15,23,42,0.6);backdrop-filter:blur(6px);box-shadow:0 10px 35px rgba(0,0,0,.35)}
+    .help details{border-left:2px solid rgba(148,163,184,.35);padding-left:.75rem;margin-top:.25rem}
+    .help summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;color:#cbd5e1;font-size:.8rem}
+    .help summary::-webkit-details-marker{display:none}
+    .badge{font-size:.675rem;padding:.15rem .5rem;border-radius:.5rem;border:1px solid rgba(148,163,184,.35);color:#cbd5e1}
+    .kbd{font-size:.7rem;border:1px solid #475569;border-bottom-width:2px;border-radius:.375rem;padding:.1rem .35rem;background:#0f172a}
+    .slider-row{display:grid;grid-template-columns:1fr auto;align-items:center}
+    .btn{display:inline-flex;align-items:center;gap:.5rem;border-radius:.6rem;padding:.55rem .85rem;font-weight:600}
+    .btn-primary{background:#f8fafc;color:#0f172a}
+    .btn-primary:hover{background:#ffffff}
+    .btn-ghost{border:1px solid #334155;color:#e2e8f0;background:transparent}
+    .btn-ghost:hover{background:#0b1220}
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 selection:bg-slate-700/60">
+  <header class="max-w-6xl mx-auto px-4 py-6 flex items-center gap-3">
+    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center shadow-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M3 3h7l2 3h9v13a2 2 0 0 1-2 2H3z" stroke-width="2" />
+        <path d="M7 13h10M7 17h6M7 9h10" stroke-width="2" />
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-xl font-semibold tracking-tight">Premium Vectorizer</h1>
+      <p class="text-xs text-slate-400">Client‑side SVG vectorization</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <span class="badge">Standalone</span>
+      <span class="badge">v2.4</span>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 pb-14 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Controls -->
+    <section class="card p-5 space-y-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Controls</h2>
+        <button id="resetAll" class="btn btn-ghost" title="Reset all to defaults">Reset defaults</button>
+      </div>
+
+      <!-- Upload -->
+      <div>
+        <label class="block text-sm text-slate-300" for="file">Upload image</label>
+        <div class="mt-2 flex items-center gap-2">
+          <input id="file" type="file" accept="image/*" class="block w-full text-sm file:mr-3 file:px-3 file:py-2 file:rounded-md file:border-0 file:bg-slate-200 file:text-slate-900 hover:file:bg-white" />
+          <button id="resetBtn" class="btn btn-ghost">Clear</button>
+        </div>
+        <p class="mt-1 text-xs text-slate-400">PNG / JPG / WebP recommended.</p>
+      </div>
+
+      <!-- Mode -->
+      <div>
+        <div class="flex items-center justify-between">
+          <label class="block text-sm">Mode</label>
+          <span class="text-xs text-slate-400">Preset recipe</span>
+        </div>
+        <select id="mode" class="mt-2 w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm">
+          <option value="logo">Logo / Flat Art</option>
+          <option value="photo">Photo → Poster</option>
+          <option value="lineart">Line Art / Ink</option>
+          <option value="text">Text / Poster (colored)</option>
+        </select>
+        <div class="help">
+          <details>
+            <summary>What do presets do?</summary>
+            <p class="mt-1 text-xs text-slate-300">Presets tune multiple settings at once to match common tasks. You can still adjust any slider afterwards.</p>
+          </details>
+        </div>
+      </div>
+
+      <!-- Sliders -->
+      <div>
+        <div class="slider-row">
+          <label class="text-sm">Colors</label>
+          <span id="colorsVal" class="text-xs text-slate-300">6</span>
+        </div>
+        <input id="colors" type="range" min="2" max="64" step="1" value="6" class="w-full mt-1" />
+        <div class="help">
+          <details><summary>What is Colors?</summary>
+            <p class="mt-1 text-xs text-slate-300">Limits the number of distinct colors in the result. Lower = simpler, smaller SVG. Higher = more detailed posterization.</p>
+          </details>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-row">
+          <label class="text-sm">Corner fidelity (ltres)</label>
+          <span id="ltresVal" class="text-xs text-slate-300">1.0</span>
+        </div>
+        <input id="ltres" type="range" min="0.5" max="3" step="0.1" value="1" class="w-full mt-1" />
+        <div class="help">
+          <details><summary>What does Corner fidelity do?</summary>
+            <p class="mt-1 text-xs text-slate-300">Controls how sharply corners are preserved while tracing. Lower values keep corners sharper; higher values smooth them out.</p>
+          </details>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-row">
+          <label class="text-sm">Curve smoothness (qtres)</label>
+          <span id="qtresVal" class="text-xs text-slate-300">1.0</span>
+        </div>
+        <input id="qtres" type="range" min="0.5" max="3" step="0.1" value="1" class="w-full mt-1" />
+        <div class="help">
+          <details><summary>What is Curve smoothness?</summary>
+            <p class="mt-1 text-xs text-slate-300">How aggressively curves are simplified. Higher values produce smoother curves with fewer points; very high values can lose detail.</p>
+          </details>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-row">
+          <label class="text-sm">Min area / despeckle (pathomit)</label>
+          <span id="omitVal" class="text-xs text-slate-300">8</span>
+        </div>
+        <input id="pathomit" type="range" min="0" max="60" step="1" value="8" class="w-full mt-1" />
+        <div class="help">
+          <details><summary>What does Min area mean?</summary>
+            <p class="mt-1 text-xs text-slate-300">Removes tiny shapes below this size. Increase to clean dust/noise; decrease to keep small details.</p>
+          </details>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-row">
+          <label class="text-sm">Coordinate precision (roundcoords)</label>
+          <span id="rcVal" class="text-xs text-slate-300">2</span>
+        </div>
+        <input id="roundcoords" type="range" min="0" max="3" step="0.5" value="2" class="w-full mt-1" />
+        <div class="help">
+          <details><summary>What is Coordinate precision?</summary>
+            <p class="mt-1 text-xs text-slate-300">Rounds SVG coordinates to reduce file size. Higher rounding = smaller files but slightly less exact shapes.</p>
+          </details>
+        </div>
+      </div>
+
+      <div>
+        <div class="slider-row">
+          <label class="text-sm">Prefilter blur radius</label>
+          <span id="blurVal" class="text-xs text-slate-300">0.0</span>
+        </div>
+        <input id="blurradius" type="range" min="0" max="2" step="0.1" value="0" class="w-full mt-1" />
+        <div class="help">
+          <details><summary>Why would I blur first?</summary>
+            <p class="mt-1 text-xs text-slate-300">A tiny blur can hide pixel noise and make smoother shapes. Keep it at 0 for logos/text to preserve crisp edges.</p>
+          </details>
+        </div>
+      </div>
+
+      <!-- Text/poster cleanup with color preservation -->
+      <div class="pt-1">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold">Text cleanup</h3>
+            <span class="badge">for posters/screenshots</span>
+          </div>
+          <label class="inline-flex items-center gap-2 text-xs"><input id="desat" type="checkbox" class="accent-slate-300" /> Desaturate first (force grayscale)</label>
+        </div>
+
+        <div class="mt-3">
+          <div class="slider-row">
+            <label class="text-sm">Snap near-white → white</label>
+            <span id="wthVal" class="text-xs text-slate-300">245</span>
+          </div>
+          <input id="whitenThresh" type="range" min="200" max="255" step="1" value="245" class="w-full mt-1" />
+          <div class="help"><details><summary>What does this fix?</summary>
+            <p class="mt-1 text-xs text-slate-300">Removes light gray halos around text by making almost-white pixels pure white. Increase until halos disappear.</p>
+          </details></div>
+        </div>
+
+        <div class="mt-3">
+          <div class="slider-row">
+            <label class="text-sm">Snap near-black → black</label>
+            <span id="bthVal" class="text-xs text-slate-300">25</span>
+          </div>
+          <input id="blackenThresh" type="range" min="0" max="80" step="1" value="25" class="w-full mt-1" />
+          <div class="help"><details><summary>What does this do?</summary>
+            <p class="mt-1 text-xs text-slate-300">Solidifies glyph edges so thin gray fringe becomes solid black. Moderate values keep letters crisp without bloating.</p>
+          </details></div>
+        </div>
+
+        <div class="mt-3">
+          <div class="slider-row">
+            <label class="text-sm">Neutrality threshold</label>
+            <span id="satVal" class="text-xs text-slate-300">0.12</span>
+          </div>
+          <input id="satThresh" type="range" min="0" max="1" step="0.01" value="0.12" class="w-full mt-1" />
+          <div class="help"><details><summary>Why neutrality?</summary>
+            <p class="mt-1 text-xs text-slate-300">Only treats low‑saturation (near‑gray) pixels as “background/halo.” Lower to protect colored edges; raise to be more aggressive.</p>
+          </details></div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <label class="inline-flex items-center gap-2 text-sm">
+          <input id="autoprev" type="checkbox" class="accent-slate-300" checked /> Live preview
+        </label>
+        <button id="runBtn" class="btn btn-primary" disabled>Loading engine…</button>
+      </div>
+
+      <div id="err" class="hidden text-xs text-red-300"></div>
+    </section>
+
+    <!-- Right column: Preview -->
+    <section class="grid grid-rows-[auto_1fr] gap-4">
+      <div class="card p-5 flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path d="M3 7h18M7 7l2-3h6l2 3M5 21h14a2 2 0 0 0 2-2V7H3v12a2 2 0 0 0 2 2Z"/>
+        </svg>
+        <h2 class="text-lg font-semibold">Preview</h2>
+        <div class="ml-auto flex items-center gap-2">
+          <button id="downloadBtn" class="btn btn-ghost disabled:opacity-50" disabled>Download SVG</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card overflow-hidden">
+          <div class="aspect-video flex items-center justify-center p-3">
+            <img id="raster" alt="uploaded" class="max-h-[70vh] object-contain" />
+          </div>
+        </div>
+        <div class="card overflow-hidden">
+          <div id="svgwrap" class="aspect-video flex items-center justify-center p-3 text-slate-400 text-sm">
+            Upload an image and click <strong class="text-slate-200">Vectorize</strong> to see the SVG here.
+          </div>
+        </div>
+      </div>
+      <canvas id="work" class="hidden"></canvas>
+    </section>
+  </main>
+
+  <!-- loader with CDN fallback -->
+  <script>
+    (function loadImageTracer(){
+      function inject(src, onload){
+        var s = document.createElement('script'); s.src = src; s.defer = true;
+        s.onload = onload; s.onerror = function(){ onload(new Error('Failed '+src)); };
+        document.head.appendChild(s);
+      }
+      function ready(){ return typeof window.ImageTracer !== 'undefined'; }
+      function enableUI(){ const runBtn = document.getElementById('runBtn'); runBtn.textContent = 'Vectorize'; runBtn.disabled = false; }
+      if(ready()){ enableUI(); return; }
+      inject('https://unpkg.com/imagetracerjs/imagetracer_v1.2.6.min.js', function(){
+        if(ready()){ enableUI(); return; }
+        inject('https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js', function(){
+          if(ready()){ enableUI(); }
+          else { const err = document.getElementById('err'); err.classList.remove('hidden'); err.textContent = 'Could not load vectorization engine from CDNs.'; }
+        });
+      });
+    })();
+  </script>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const st = {
+      mode: "text",
+      numberofcolors: 6, ltres: 1.0, qtres: 1.0, pathomit: 8, roundcoords: 2, blurradius: 0.0,
+      viewbox: true, autoprev: true, file: null, svg: null, working: false, imgReady: false,
+      whitenThresh: 245, blackenThresh: 25, desaturate: false, satThresh: 0.12
+    };
+    const presets = {
+      logo:   { numberofcolors: 6,  ltres: 1,   qtres: 1,   pathomit: 8,  blurradius: 0,   roundcoords: 2, viewbox: true },
+      photo:  { numberofcolors: 24, ltres: 1,   qtres: 2,   pathomit: 2,  blurradius: 0.5, roundcoords: 1, viewbox: true },
+      lineart:{ numberofcolors: 2,  ltres: 0.8, qtres: 0.8, pathomit: 12, blurradius: 0,   roundcoords: 2, viewbox: true },
+      text:   { numberofcolors: 2,  ltres: 0.9, qtres: 0.9, pathomit: 2,  blurradius: 0.0, roundcoords: 2, viewbox: true }
+    };
+    function syncLabels(){
+      $("colorsVal").textContent = st.numberofcolors;
+      $("ltresVal").textContent  = st.ltres.toFixed(2);
+      $("qtresVal").textContent  = st.qtres.toFixed(2);
+      $("omitVal").textContent   = st.pathomit;
+      $("rcVal").textContent     = st.roundcoords;
+      $("blurVal").textContent   = st.blurradius.toFixed(2);
+      $("wthVal").textContent    = st.whitenThresh;
+      $("bthVal").textContent    = st.blackenThresh;
+      $("satVal").textContent    = st.satThresh.toFixed(2);
+      $("downloadBtn").disabled  = !st.svg;
+    }
+    function applyPreset(name){
+      Object.assign(st, presets[name]); st.mode = name;
+      $("colors").value = st.numberofcolors; $("ltres").value = st.ltres; $("qtres").value = st.qtres;
+      $("pathomit").value = st.pathomit; $("roundcoords").value = st.roundcoords; $("blurradius").value = st.blurradius;
+      if(name==='text'){ st.whitenThresh = 245; st.blackenThresh = 25; st.desaturate = false; st.satThresh = 0.12; $("desat").checked = false; $("satThresh").value=st.satThresh; }
+      syncLabels(); maybeAuto();
+    }
+    function showError(msg, detail){
+      const e = $("err"); e.classList.remove("hidden"); e.textContent = detail ? msg + " — " + detail : msg;
+      setTimeout(()=>e.classList.add("hidden"), 6000);
+    }
+    function maybeAuto(){ if(st.autoprev && st.file && st.imgReady) runTrace(); }
+
+    function quickSaturation(r,g,b){
+      const max = Math.max(r,g,b), min = Math.min(r,g,b);
+      return max===0 ? 0 : (max-min)/max;
+    }
+
+    function preprocessImageData(imdata){
+      const d = imdata.data; const len = d.length;
+      const wT = st.whitenThresh|0; const bT = st.blackenThresh|0; const desat = st.desaturate; const sT = st.satThresh;
+      for(let i=0;i<len;i+=4){
+        let r=d[i], g=d[i+1], b=d[i+2], a=d[i+3];
+        if(a<10){ continue; }
+        const s = quickSaturation(r,g,b);
+        if(desat){
+          const y = (0.2126*r + 0.7152*g + 0.0722*b)|0;
+          r=g=b=y;
+        }
+        if((r>=wT && g>=wT && b>=wT) || (s < sT && r>=wT-5 && g>=wT-5 && b>=wT-5)){
+          d[i]=d[i+1]=d[i+2]=255; d[i+3]=255; continue;
+        }
+        if((r<=bT && g<=bT && b<=bT) || (s < sT && r<=bT+5 && g<=bT+5 && b<=bT+5)){
+          d[i]=d[i+1]=d[i+2]=0; d[i+3]=255; continue;
+        }
+        d[i]=r; d[i+1]=g; d[i+2]=b;
+      }
+      return imdata;
+    }
+
+    async function runTrace(){
+      if(!st.file || !st.imgReady || st.working) return;
+      if(typeof window.ImageTracer === 'undefined'){ showError('Vectorization engine not loaded'); return; }
+      st.working = true;
+      const btn = $("runBtn"); const old = btn.textContent;
+      btn.textContent = "Vectorizing…"; btn.disabled = true;
+      try{
+        const img = $("raster"); const canvas = $("work"); const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const MAX = 3000; const scale = Math.min(1, MAX / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+        canvas.width  = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+        canvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        let imdata = ctx.getImageData(0,0,canvas.width, canvas.height);
+        imdata = preprocessImageData(imdata);
+        const svgstr = ImageTracer.imagedataToSVG(imdata, {
+          numberofcolors: st.numberofcolors, ltres: st.ltres, qtres: st.qtres, pathomit: st.pathomit,
+          blurradius: st.blurradius, blurdelta: 64, roundcoords: st.roundcoords, viewbox: st.viewbox, desc: true
+        });
+        st.svg = svgstr;
+        $("svgwrap").innerHTML = svgstr;
+      }catch(err){
+        console.error(err);
+        showError("Vectorization failed.", err && (err.message || String(err)).slice(0,200));
+      }finally{
+        st.working = false; btn.textContent = old; btn.disabled = false; syncLabels();
+      }
+    }
+
+    // Wiring
+    $("file").addEventListener("change", (ev)=>{
+      const f = ev.target.files && ev.target.files[0];
+      st.file = f || null; st.svg = null; st.imgReady = false; $("downloadBtn").disabled = true;
+      if(!f){ $("raster").src = ""; $("svgwrap").textContent = "No file selected."; return; }
+      const r = new FileReader();
+      r.onload = () => {
+        $("raster").onload = () => { st.imgReady = true; maybeAuto(); };
+        $("raster").onerror = () => { showError("Could not load image."); };
+        $("raster").src = String(r.result);
+      };
+      r.readAsDataURL(f);
+    });
+    $("resetBtn").addEventListener("click", ()=>{
+      st.file=null; st.svg=null; st.imgReady=false; $("file").value=""; $("raster").src=""; $("svgwrap").textContent="Upload an image and click Vectorize to see the SVG here."; $("downloadBtn").disabled=true;
+    });
+    $("resetAll").addEventListener("click", ()=>{ applyPreset("text"); $("colors").value=6; st.numberofcolors=6; syncLabels(); maybeAuto(); });
+    $("mode").addEventListener("change", (e)=>applyPreset(e.target.value));
+    $("colors").addEventListener("input",(e)=>{st.numberofcolors=+e.target.value; syncLabels(); maybeAuto();});
+    $("ltres").addEventListener("input",(e)=>{st.ltres=+e.target.value; syncLabels(); maybeAuto();});
+    $("qtres").addEventListener("input",(e)=>{st.qtres=+e.target.value; syncLabels(); maybeAuto();});
+    $("pathomit").addEventListener("input",(e)=>{st.pathomit=+e.target.value; syncLabels(); maybeAuto();});
+    $("roundcoords").addEventListener("input",(e)=>{st.roundcoords=+e.target.value; syncLabels(); maybeAuto();});
+    $("blurradius").addEventListener("input",(e)=>{st.blurradius=+e.target.value; syncLabels(); maybeAuto();});
+    $("whitenThresh").addEventListener("input",(e)=>{st.whitenThresh=+e.target.value; syncLabels(); maybeAuto();});
+    $("blackenThresh").addEventListener("input",(e)=>{st.blackenThresh=+e.target.value; syncLabels(); maybeAuto();});
+    $("satThresh").addEventListener("input",(e)=>{st.satThresh=+e.target.value; syncLabels(); maybeAuto();});
+    $("desat").addEventListener("change",(e)=>{st.desaturate=e.target.checked; maybeAuto();});
+    $("autoprev").addEventListener("change",(e)=>{st.autoprev=e.target.checked;});
+    $("runBtn").addEventListener("click", runTrace);
+    $("downloadBtn").addEventListener("click", ()=>{
+      if(!st.svg) return; const blob = new Blob([st.svg],{type:"image/svg+xml;charset=utf-8"});
+      const url = URL.createObjectURL(blob); const a = document.createElement("a");
+      a.href = url; a.download = (st.file?.name?.replace(/\.[^.]+$/, "") || "vectorized") + ".svg"; a.click(); URL.revokeObjectURL(url);
+    });
+
+    applyPreset("text"); // nicer default
+  </script>
+</body>
+</html>
