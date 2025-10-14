@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Neural Vectorizer — Browser</title>
+  <link rel="stylesheet" href="style.css"/>
+  <!-- ONNX Runtime Web -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Neural Vectorizer</div>
+  <div class="meta">
+    <span id="provider" class="chip">—</span>
+    <span id="status" class="muted">Loading config…</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel">
+    <h2>Model</h2>
+    <div class="row">
+      <div class="progress"><div id="bar" class="bar"></div></div>
+      <div class="grid2">
+        <label class="line">
+          <input id="forceWasm" type="checkbox"/>
+          Force CPU (WASM) — use if GPU is busy (training) or WebGPU errors.
+        </label>
+        <div class="kvs">
+          <span>Input size: <b id="modelSize">—</b></span>
+          <span>Outputs: <b id="modelOuts">—</b></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Images</h2>
+    <div id="drop" class="drop">
+      <input id="file" type="file" accept="image/*" multiple/>
+      <p>Drag & drop or click to select</p>
+    </div>
+    <div id="inputs" class="gallery"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Quality & Controls</h2>
+    <div class="controls">
+      <label>
+        Simplify (ε) <span id="epsVal" class="val">1.0</span>
+        <input id="eps" type="range" min="0" max="5" step="0.1" value="1.0"/>
+        <details><summary>What is this?</summary><p>Higher values produce fewer nodes and smoother paths; lower values follow details more closely.</p></details>
+      </label>
+      <label>
+        Min area (px) <span id="minAreaVal" class="val">16</span>
+        <input id="minArea" type="range" min="0" max="256" step="1" value="16"/>
+        <details><summary>What is this?</summary><p>Small shapes under this area are discarded to avoid tiny specks.</p></details>
+      </label>
+      <label>
+        Fill opacity <span id="opacityVal" class="val">1.0</span>
+        <input id="opacity" type="range" min="0.2" max="1" step="0.05" value="1.0"/>
+        <details><summary>What is this?</summary><p>Preview/transcoded SVG fill opacity. Set &lt;1.0 to see overlaps.</p></details>
+      </label>
+      <label>
+        Snap whites <span id="snapWVal" class="val">240</span>
+        <input id="snapW" type="range" min="200" max="255" step="1" value="240"/>
+        <details><summary>What is this?</summary><p>Push near-white pixels to pure white before inference to reduce halos.</p></details>
+      </label>
+      <label>
+        Snap blacks <span id="snapBVal" class="val">20</span>
+        <input id="snapB" type="range" min="0" max="55" step="1" value="20"/>
+        <details><summary>What is this?</summary><p>Push near-black pixels to pure black before inference; helps with crisp text.</p></details>
+      </label>
+      <div class="btns">
+        <button id="run">Run</button>
+        <button id="clear">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Results</h2>
+    <div id="gallery" class="gallery"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Diagnostics</h2>
+    <pre id="diag" class="diag"></pre>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+</script>
+<script src="app.js"></script>
+</body>
+</html>
