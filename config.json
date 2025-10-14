@@ -1,0 +1,6 @@
+{
+  "model_urls": [
+    "models/vectorizer.onnx"
+  ],
+  "force_wasm": false
+}
