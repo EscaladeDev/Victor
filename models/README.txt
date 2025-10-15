@@ -1,1 +1,0 @@
-Place vectorizer.onnx here.
