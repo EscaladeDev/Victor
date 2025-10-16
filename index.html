@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Escalade — Vector Tools (Premium Vectorizer v3.0)</title>
+  <title>Escalade — Vector Tools (Premium Vectorizer v3.1)</title>
   <meta name="description" content="Escalade Vector Tools — raster→SVG vectorizer with distinct-first palette and premium anti-seam export." />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{
       --es-bg-1:#071028; --es-bg-2:#071826;
       --es-accent:#00b3c6; --es-accent-2:#6d5dff;
-      --es-muted:#9fb0c8; --es-border:rgba(255,255,255,.04);
+      --es-muted:#9fb0c8; --es-border:rgba(255,255,255,.06);
+      --es-card:rgba(255,255,255,.02);
     }
     html,body{
       height:100%;
@@ -21,18 +22,34 @@
       font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
       -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
     }
-    .card{border-radius:1rem;border:1px solid var(--es-border);background:linear-gradient(180deg,rgba(255,255,255,.02),transparent);backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(2,6,23,.6)}
+    .card{border-radius:1rem;border:1px solid var(--es-border);background:linear-gradient(180deg,var(--es-card),transparent);backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(2,6,23,.6)}
     .es-badge{font-size:.7rem;padding:.25rem .55rem;border-radius:.6rem;border:1px solid var(--es-border);color:var(--es-muted)}
-    .es-btn{display:inline-flex;align-items:center;gap:.55rem;border-radius:.7rem;padding:.55rem .9rem;font-weight:700;letter-spacing:.01em;border:1px solid rgba(255,255,255,.03);cursor:pointer}
+    .es-btn{display:inline-flex;align-items:center;gap:.55rem;border-radius:.7rem;padding:.55rem .9rem;font-weight:700;letter-spacing:.01em;border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:transform .05s ease}
+    .es-btn:active{transform:translateY(1px)}
     .es-btn-primary{background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent));color:#02131a}
     .es-btn-ghost{color:var(--es-muted);background:transparent}
-    .logo-mark{width:44px;height:44px;border-radius:.85rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, rgba(109,93,255,.16), rgba(0,179,198,.06));border:1px solid rgba(255,255,255,.02)}
+    .logo-mark{width:44px;height:44px;border-radius:.85rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, rgba(109,93,255,.16), rgba(0,179,198,.06));border:1px solid rgba(255,255,255,.08)}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono",monospace;color:var(--es-muted)}
-    #svgwrap{min-height:56vh;max-height:70vh;overflow:auto;border-radius:.75rem}
     .controls-grid{display:grid;gap:.75rem;grid-template-columns:1fr 1fr}
     @media (max-width:1024px){.controls-grid{grid-template-columns:1fr}.logo-mark{width:36px;height:36px}}
     input[type=file]::file-selector-button{background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent));color:#02131a;padding:.45rem .7rem;margin-right:.5rem;border-radius:.55rem;border:none;font-weight:700}
     .disabled{opacity:.45;pointer-events:none}
+
+    /* PREVIEW PANELS */
+    .panel-head{display:flex;align-items:center;gap:.6rem;border-bottom:1px solid rgba(255,255,255,.06);padding:.8rem 1rem}
+    .panel-title{font-weight:600}
+    .panel-body{position:relative;padding:1rem;background:
+      linear-gradient(0deg, rgba(255,255,255,.02), rgba(255,255,255,.02)),
+      radial-gradient(circle at 25% 10%, rgba(255,255,255,.04) 0 1px, transparent 1px) top/18px 18px,
+      radial-gradient(circle at 75% 90%, rgba(255,255,255,.04) 0 1px, transparent 1px) top/18px 18px;}
+    #svgwrap{min-height:56vh;max-height:70vh;overflow:auto;border-radius:.75rem}
+    .viewport{display:flex;align-items:center;justify-content:center;min-height:60vh;border-radius:.75rem;background:rgba(2,6,23,.25)}
+    .placeholder{display:grid;place-items:center;text-align:center;gap:.6rem;color:#b7c5d9}
+    .placeholder svg{opacity:.9}
+    .ph-tip{font-size:.85rem;opacity:.9}
+    .ph-actions{display:flex;gap:.5rem;justify-content:center}
+    .ph-chip{font-size:.7rem;border:1px dashed rgba(255,255,255,.25);padding:.25rem .5rem;border-radius:.5rem}
+    .img-frame{max-height:85vh;max-width:100%;object-fit:contain;border-radius:.5rem;box-shadow:0 8px 26px rgba(2,6,23,.55)}
   </style>
 </head>
 <body class="min-h-screen selection:bg-slate-800/50">
@@ -51,13 +68,17 @@
         <h1 class="text-xl font-semibold tracking-tight">Escalade Vector Tools</h1>
         <span class="es-badge ml-3">Premium</span>
       </div>
-      <p class="text-xs mono mt-0.5">Hybrid raster → SVG · Distinct-first palette · v3.0</p>
+      <p class="text-xs mono mt-0.5">Hybrid raster → SVG · Distinct-first palette · v3.1</p>
     </div>
     <nav class="ml-auto flex items-center gap-3">
       <a class="es-badge">Standalone</a>
       <a class="es-badge">Offline-ready</a>
-      <button id="helpBtn" class="es-btn es-btn-ghost">Docs</button>
-      <button id="downloadBtnTop" class="es-btn es-btn-primary" style="display:none">Export SVG</button>
+      <a href="https://donate.stripe.com/4gM4gBcmO1nG9PA5zF1B601" target="_blank" rel="noopener" class="es-btn es-btn-primary" title="Support development">
+        <!-- heart/coffee icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h13a4 4 0 110 8H9a6 6 0 01-6-6v-2zm13 0V6M5 6h11"/></svg>
+        Donate
+      </a>
+      <button id="downloadBtnTop" class="es-btn es-btn-ghost" style="display:none">Export SVG</button>
     </nav>
   </header>
 
@@ -137,27 +158,53 @@
       </section>
     </aside>
 
-    <!-- Preview -->
+    <!-- Right: Preview panels -->
     <section class="lg:col-span-8 xl:col-span-9 space-y-4">
-      <div class="card p-5 flex items-center gap-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7h18M7 7l2-3h6l2 3M5 21h14a2 2 0 0 0 2-2V7H3v12a2 2 0 0 0 2 2Z"/></svg>
-        <h2 class="text-lg font-semibold">Preview</h2>
-        <div class="ml-auto flex items-center gap-2">
-          <button id="downloadBtn" class="es-btn es-btn-ghost disabled" disabled>Download SVG</button>
+
+      <!-- Raster panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4-4 4 4 8-8"/></svg>
+          <div class="panel-title">Raster (input)</div>
+          <div class="ml-auto text-xs mono" id="rasterMeta"></div>
+        </div>
+        <div class="panel-body">
+          <div id="rasterEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M7 7l2-3h6l2 3M5 21h14a2 2 0 0 0 2-2V7H3v12a2 2 0 0 0 2 2Z"/>
+              </svg>
+              <div class="ph-tip mt-2">Drag & drop an image here, or use <em>Upload image</em>.</div>
+              <div class="ph-actions mt-2">
+                <span class="ph-chip">PNG</span><span class="ph-chip">JPG</span><span class="ph-chip">WebP</span>
+              </div>
+            </div>
+          </div>
+          <div id="rasterWrap" class="viewport" style="display:none;">
+            <img id="raster" alt="uploaded image" class="img-frame" />
+          </div>
         </div>
       </div>
 
-      <div class="flex flex-col gap-4">
-        <div class="card overflow-hidden">
-          <div class="flex items-center justify-center p-3" style="min-height:60vh;">
-            <img id="raster" alt="uploaded" class="w-full h-auto max-h-[85vh] object-contain" />
+      <!-- Vector panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M3 11h18M4 19h16"/></svg>
+          <div class="panel-title">Vector (output)</div>
+          <div class="ml-auto">
+            <button id="downloadBtn" class="es-btn es-btn-ghost disabled" disabled>Download SVG</button>
           </div>
         </div>
-
-        <div class="card overflow-hidden">
-          <div id="svgwrap" class="flex items-center justify-center p-3 text-slate-400 text-sm" style="min-height:56vh;">
-            Upload an image and click <strong class="text-slate-200">Vectorize</strong> to see the SVG here.
+        <div class="panel-body">
+          <div id="svgEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/>
+              </svg>
+              <div class="ph-tip mt-2">Click <strong>Vectorize</strong> to generate your SVG.</div>
+            </div>
           </div>
+          <div id="svgwrap" class="viewport"></div>
         </div>
       </div>
 
@@ -178,7 +225,7 @@
     })();
   </script>
 
-  <!-- Core app -->
+  <!-- Core app (distinct-first palette + anti-seam export) -->
   <script>
     const $ = (id) => document.getElementById(id);
     const st = { k:12, smooth:1, whiteT:245, blackT:25, desat:false, lt:1.0, qt:1.0, omit:8, rc:1, autoprev:true, file:null, svg:null, imgReady:false, working:false,
@@ -194,7 +241,6 @@
 
     function loadCustomPresets(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || []; }catch(e){ return []; } }
     function saveCustomPresets(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
-
     function populatePresetSelect(selectName=null){
       const sel = $('presetSelect'); sel.innerHTML='';
       const bgrp=document.createElement('optgroup'); bgrp.label='Built-in';
@@ -208,7 +254,6 @@
       }
       if(selectName){ [...sel.options].forEach((o)=>{ if(o.textContent===selectName) sel.value=o.value; }); } else sel.selectedIndex=0;
     }
-
     function applySettings(S){ Object.assign(st, S); sync(); if(st.autoprev) run(); }
 
     $('presetSelect').addEventListener('change', (e)=>{
@@ -217,8 +262,7 @@
       if(v.startsWith('c:')){ const i=+v.split(':')[1]; const arr=loadCustomPresets(); applySettings(arr[i].s); }
     });
     $('savePreset').addEventListener('click', ()=>{
-      const name = prompt('Preset name:');
-      if(!name) return;
+      const name = prompt('Preset name:'); if(!name) return;
       const arr=loadCustomPresets();
       const idx = arr.findIndex(p=>p.name.toLowerCase()===name.toLowerCase());
       const obj={name, s:{k:st.k, smooth:st.smooth, whiteT:st.whiteT, blackT:st.blackT, desat:st.desat, lt:st.lt, qt:st.qt, omit:st.omit, rc:Math.min(st.rc,1)}};
@@ -231,7 +275,7 @@
       $('ltVal').textContent=st.lt.toFixed(2); $('qtVal').textContent=st.qt.toFixed(2); $('omitVal').textContent=st.omit; $('rcVal').textContent=Math.min(st.rc,1);
       $('minDeltaVal').textContent=st.minDelta;
       const dl = $('downloadBtn'); dl.disabled=!st.svg; dl.classList.toggle('disabled', !st.svg);
-      const dlTop = $('downloadBtnTop'); dlTop.style.display = st.svg ? 'inline-flex' : 'none';
+      $('downloadBtnTop').style.display = st.svg ? 'inline-flex' : 'none';
       $('distinctPalette').checked = st.distinctPalette;
       $('lockWB').checked = st.lockWB;
     };
@@ -250,18 +294,48 @@
       sync(); if(st.autoprev) run();
     });
 
+    // File handling + drop
     $('downloadBtn').addEventListener('click', ()=>{
       if(!st.svg) return; const blob=new Blob([st.svg],{type:"image/svg+xml;charset=utf-8"});
       const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(st.file?.name?.replace(/\.[^.]+$/,'')||'vectorized')+'.svg'; a.click(); URL.revokeObjectURL(url);
     });
     $('downloadBtnTop').addEventListener('click', ()=>{ $('downloadBtn').click(); });
 
-    $('file').addEventListener('change',ev=>{
-      const f=ev.target.files && ev.target.files[0]; st.file=f||null; st.svg=null; st.imgReady=false; sync();
-      if(!f){ $('raster').src=''; $('svgwrap').textContent='No file selected.'; return; }
-      const r=new FileReader(); r.onload=()=>{ $('raster').onload=()=>{ st.imgReady=true; if(st.autoprev) run(); }; $('raster').src=String(r.result); }; r.readAsDataURL(f);
+    $('file').addEventListener('change',ev=>{ handleFile(ev.target.files?.[0]||null); });
+
+    // Drag & drop onto raster panel
+    const dropZone = document.querySelector('#rasterEmpty');
+    ['dragenter','dragover'].forEach(evt=>dropZone.addEventListener(evt,e=>{ e.preventDefault(); dropZone.style.border='2px dashed rgba(255,255,255,.45)'; }));
+    ;['dragleave','drop'].forEach(evt=>dropZone.addEventListener(evt,e=>{ e.preventDefault(); dropZone.style.border=''; }));
+    dropZone.addEventListener('drop',e=>{
+      const f=e.dataTransfer.files?.[0]; if(f) handleFile(f);
     });
-    $('resetBtn').addEventListener('click', ()=>{ st.file=null; st.svg=null; st.imgReady=false; $('file').value=''; $('raster').src=''; $('svgwrap').textContent='Upload an image and click Vectorize to see the SVG here.'; sync(); });
+
+    function handleFile(f){
+      st.file=f||null; st.svg=null; st.imgReady=false; sync();
+      if(!f){ $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid'; $('raster').src=''; $('svgwrap').innerHTML=''; $('svgEmpty').style.display='grid'; updateMeta(); return; }
+      const r=new FileReader();
+      r.onload=()=>{
+        $('raster').onload=()=>{ st.imgReady=true; $('rasterWrap').style.display='flex'; $('rasterEmpty').style.display='none'; updateMeta(); if(st.autoprev) run(); };
+        $('raster').src=String(r.result);
+      };
+      r.readAsDataURL(f);
+    }
+
+    function updateMeta(){
+      const el=$('rasterMeta');
+      if(st.file && $('raster').naturalWidth){
+        el.textContent = `${st.file.name} — ${$('raster').naturalWidth}×${$('raster').naturalHeight}px`;
+      } else el.textContent = 'No image loaded';
+    }
+
+    $('resetBtn').addEventListener('click', ()=>{
+      st.file=null; st.svg=null; st.imgReady=false;
+      $('file').value=''; $('raster').src='';
+      $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid';
+      $('svgwrap').innerHTML=''; $('svgEmpty').style.display='grid';
+      updateMeta(); sync();
+    });
 
     function alertErr(msg){ const e=$('err'); e.classList.remove('hidden'); e.textContent=msg; setTimeout(()=>e.classList.add('hidden'),5000); }
 
@@ -291,59 +365,48 @@
     function buildCandidates(imdata, sample=2){
       const {data,width,height}=imdata; const N=width*height;
       const ptsCount=Math.max(1,Math.floor(N/sample));
-      const stats=new Map(); // key=rounded Lab string, value=count+exact avg
+      const stats=new Map();
       for(let i=0;i<ptsCount;i++){
         const idx=(Math.floor(Math.random()*N))*4;
         const L=rgb2lab(data[idx],data[idx+1],data[idx+2]);
-        // round a bit to reduce duplicates
         const key = `${Math.round(L[0]*2)/2},${Math.round(L[1])},${Math.round(L[2])}`;
         const s = stats.get(key) || {sum:[0,0,0],count:0};
         s.sum[0]+=L[0]; s.sum[1]+=L[1]; s.sum[2]+=L[2]; s.count++;
         stats.set(key,s);
       }
-      const candidates=[]; // {lab:[L,a,b], count}
+      const candidates=[];
       stats.forEach(v=>{
         candidates.push({ lab:[v.sum[0]/v.count, v.sum[1]/v.count, v.sum[2]/v.count], count:v.count });
       });
-      // sort by frequency desc to make first pick stable
       candidates.sort((a,b)=>b.count-a.count);
       return candidates;
     }
 
     function selectMaxDiversity(cands, k, {lockWB=true, minDelta=12}={}){
       const palette=[];
-      // Optionally reserve slots for white/black if present among top candidates
       if(lockWB){
         const white = cands.find(c=>isNearWhiteLab(c.lab[0],c.lab[1],c.lab[2]));
         const black = cands.find(c=>isNearBlackLab(c.lab[0]));
         if(white) palette.push(white.lab);
         if(black && palette.length<k) palette.push(black.lab);
       }
-      if(palette.length===0 && cands.length) palette.push(cands[0].lab); // seed with most frequent
-
+      if(palette.length===0 && cands.length) palette.push(cands[0].lab);
       while(palette.length<k && cands.length){
         let best=null, bestScore=-1;
-        // rough normalization for frequency
         const maxCnt=cands[0]?.count||1;
         for(const c of cands){
-          // min distance to current palette
-          let dmin=1e9;
-          for(const p of palette){ const d=deltaE76(c.lab,p); if(d<dmin) dmin=d; }
-          // enforce minimum separation preference; frequency nudges tie-breaks
-          const freqBoost = 0.12*(c.count/maxCnt); // 12% influence
+          let dmin=1e9; for(const p of palette){ const d=deltaE76(c.lab,p); if(d<dmin) dmin=d; }
+          const freqBoost = 0.12*(c.count/maxCnt);
           const score = dmin + freqBoost;
           if(dmin >= minDelta && score>bestScore){ best=c; bestScore=score; }
         }
-        // If we couldn't meet minDelta, pick the farthest anyway
         if(!best){
           for(const c of cands){
             let dmin=1e9; for(const p of palette){ const d=deltaE76(c.lab,p); if(d<dmin) dmin=d; }
-            const score=dmin;
-            if(score>bestScore){ best=c; bestScore=score; }
+            if(dmin>bestScore){ best=c; bestScore=dmin; }
           }
         }
         palette.push(best.lab);
-        // prune near-duplicates around the chosen color to keep diversity
         for(let i=cands.length-1;i>=0;i--){
           if(deltaE76(cands[i].lab, best.lab)<(minDelta*0.6)) cands.splice(i,1);
         }
@@ -353,23 +416,15 @@
     }
 
     function refineMedoids(cands, palette){
-      // Assign candidates to nearest palette color, then choose medoid (most central) per cluster.
       const clusters=palette.map(()=>[]);
       for(const c of cands){
-        let bi=0,bd=1e9;
-        for(let i=0;i<palette.length;i++){ const d=deltaE76(c.lab, palette[i]); if(d<bd){bd=d;bi=i;} }
+        let bi=0,bd=1e9; for(let i=0;i<palette.length;i++){ const d=deltaE76(c.lab, palette[i]); if(d<bd){bd=d;bi=i;} }
         clusters[bi].push(c);
       }
       for(let i=0;i<palette.length;i++){
-        const cluster = clusters[i];
-        if(cluster.length===0) continue;
-        // medoid: pick the candidate minimizing sum of distances to others (weighted by count)
+        const cluster = clusters[i]; if(cluster.length===0) continue;
         let best=cluster[0], bestSum=1e18;
-        for(const a of cluster){
-          let sum=0;
-          for(const b of cluster){ sum += deltaE76(a.lab,b.lab) * b.count; }
-          if(sum<bestSum){ bestSum=sum; best=a; }
-        }
+        for(const a of cluster){ let sum=0; for(const b of cluster){ sum += deltaE76(a.lab,b.lab) * b.count; } if(sum<bestSum){ bestSum=sum; best=a; } }
         palette[i]=best.lab;
       }
       return palette;
@@ -380,8 +435,6 @@
       const cands=buildCandidates(imdata, sample);
       let palette=selectMaxDiversity(cands.slice(), k, {lockWB, minDelta});
       palette=refineMedoids(cands, palette);
-
-      // map pixels
       for(let i=0;i<N;i++){
         const j=i*4; const p=rgb2lab(data[j],data[j+1],data[j+2]);
         let bi=0,bd=1e9; for(let c=0;c<palette.length;c++){ const d=deltaE76(p,palette[c]); if(d<bd){bd=d;bi=c;} }
@@ -412,23 +465,14 @@
 
     /* ---------- SVG post-processor (safe & anti-seam) ---------- */
     function postProcessSVG(svg, { bg = '#0a1224', strokeWidth = 0.35 } = {}) {
-      // Add style + background once, right after <svg …>
-      svg = svg.replace(/<svg([^>]*)>/,
-        `<svg$1><style>*{shape-rendering:geometricPrecision}</style><rect width="100%" height="100%" fill="${bg}"/>`
-      );
-      // Remove any existing stroke* to avoid duplicate attributes
+      svg = svg.replace(/<svg([^>]*)>/, `<svg$1><style>*{shape-rendering:geometricPrecision}</style><rect width="100%" height="100%" fill="${bg}"/>`);
       svg = svg.replace(/<path\b[^>]*>/g, (tag)=>{
         let t = tag.replace(/\s+stroke(?:-width|-linejoin|-linecap)?="[^"]*"/gi, '');
         t = t.replace(/style="([^"]*)"/gi, (m, style)=>{
-          const cleaned = style
-            .replace(/stroke(?:-width|-linejoin|-linecap)?\s*:\s*[^;"]*;?/gi,'')
-            .trim().replace(/;{2,}/g,';').replace(/^;|;$/g,'');
+          const cleaned = style.replace(/stroke(?:-width|-linejoin|-linecap)?\s*:\s*[^;"]*;?/gi,'').trim().replace(/;{2,}/g,';').replace(/^;|;$/g,'');
           return cleaned ? `style="${cleaned}"` : '';
         });
-        // inject match-color hairline stroke if a fill exists
-        const withStroke = t.replace(/<path\b([^>]*?)\sfill="([^"]+)"([^>]*)>/i,
-          `<path $1 fill="$2" stroke="$2" stroke-width="${strokeWidth}" stroke-linejoin="round"$3>`
-        );
+        const withStroke = t.replace(/<path\b([^>]*?)\sfill="([^"]+)"([^>]*)>/i, `<path $1 fill="$2" stroke="$2" stroke-width="${strokeWidth}" stroke-linejoin="round"$3>`);
         return withStroke;
       });
       return svg;
@@ -447,7 +491,6 @@
         ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height);
 
         let imdata=ctx.getImageData(0,0,canvas.width,canvas.height);
-        // Preprocess
         (function preprocess(imdata, whiteT, blackT, desat){
           const d=imdata.data;
           for(let i=0;i<d.length;i+=4){
@@ -462,40 +505,31 @@
           return imdata;
         })(imdata, st.whiteT, st.blackT, st.desat);
 
-        // Smoothing
         smoothImage(imdata.data, canvas.width, canvas.height, st.smooth);
 
-        // Quantize: distinct-first or fallback
         if(st.distinctPalette){
           quantizeDistinct(imdata, st.k, {lockWB:st.lockWB, minDelta:st.minDelta, sample:2});
         }else{
-          // fallback: simple distinct-first without WB lock & lower ΔE
           quantizeDistinct(imdata, st.k, {lockWB:false, minDelta:8, sample:2});
         }
 
-        // Vectorize
         const svgraw = ImageTracer.imagedataToSVG(imdata, {
-          numberofcolors: st.k,
-          ltres: st.lt,
-          qtres: st.qt,
-          pathomit: st.omit,
-          blurradius: 0,
-          blurdelta: 64,
-          roundcoords: Math.min(st.rc, 1),
-          viewbox: true,
-          desc: true
+          numberofcolors: st.k, ltres: st.lt, qtres: st.qt, pathomit: st.omit,
+          blurradius: 0, blurdelta: 64, roundcoords: Math.min(st.rc, 1), viewbox: true, desc: true
         });
 
-        // Post-process SVG to avoid seams + duplicate attributes
         const svgstr = postProcessSVG(svgraw, { bg: '#0a1224', strokeWidth: 0.35 });
-
         st.svg=svgstr;
         $('svgwrap').innerHTML=svgstr;
+        $('svgEmpty').style.display='none';
       }catch(err){ console.error(err); alertErr("Vectorization failed — "+(err?.message||String(err))); }
       finally{ st.working=false; btn.textContent=old; btn.disabled=false; sync(); }
     }
 
-    function init(){ populatePresetSelect(); applySettings(BUILTINS[1].s); sync(); }
+    function init(){
+      populatePresetSelect(); applySettings(BUILTINS[1].s); sync();
+      $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid'; $('svgEmpty').style.display='grid';
+    }
     window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
