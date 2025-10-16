@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Escalade — Vector Tools (v3.3 • progress + help)</title>
+  <meta name="description" content="Escalade Vector Tools — raster→SVG vectorizer with distinct-first palette, anti-seam export, responsive UI, progress, and inline help." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --es-bg-1:#071028; --es-bg-2:#071826;
+      --es-accent:#00b3c6; --es-accent-2:#6d5dff;
+      --es-muted:#9fb0c8; --es-border:rgba(255,255,255,.06);
+      --es-card:rgba(255,255,255,.02);
+    }
+    html,body{
+      height:100%;
+      background:
+        radial-gradient(1200px 800px at 10% 10%, rgba(13,30,50,.55), transparent 8%),
+        linear-gradient(180deg,var(--es-bg-1),var(--es-bg-2));
+      color:#e6f0f6;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+    .card{border-radius:1rem;border:1px solid var(--es-border);background:linear-gradient(180deg,var(--es-card),transparent);backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(2,6,23,.6)}
+    .es-badge{font-size:.7rem;padding:.25rem .55rem;border-radius:.6rem;border:1px solid var(--es-border);color:#9fb0c8}
+    .es-btn{display:inline-flex;align-items:center;gap:.55rem;border-radius:.7rem;padding:.55rem .9rem;font-weight:700;letter-spacing:.01em;border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:transform .05s ease}
+    .es-btn:active{transform:translateY(1px)}
+    .es-btn-primary{background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent));color:#02131a}
+    .es-btn-ghost{color:#9fb0c8;background:transparent}
+    .logo-mark{width:44px;height:44px;border-radius:.85rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, rgba(109,93,255,.16), rgba(0,179,198,.06));border:1px solid rgba(255,255,255,.08)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono",monospace;color:#9fb0c8}
+    .controls-grid{display:grid;gap:.75rem;grid-template-columns:1fr 1fr}
+    @media (max-width:1024px){.controls-grid{grid-template-columns:1fr}.logo-mark{width:36px;height:36px}}
+    input[type=file]::file-selector-button{background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent));color:#02131a;padding:.45rem .7rem;margin-right:.5rem;border-radius:.55rem;border:none;font-weight:700}
+    .disabled{opacity:.45;pointer-events:none}
+
+    /* Panels */
+    .panel-head{display:flex;align-items:center;gap:.6rem;border-bottom:1px solid rgba(255,255,255,.06);padding:.7rem 1rem}
+    .panel-title{font-weight:600}
+    .panel-body{position:relative;padding:clamp(.5rem,1.5vw,1rem);background:
+      linear-gradient(0deg, rgba(255,255,255,.02), rgba(255,255,255,.02)),
+      radial-gradient(circle at 25% 10%, rgba(255,255,255,.04) 0 1px, transparent 1px) top/18px 18px,
+      radial-gradient(circle at 75% 90%, rgba(255,255,255,.04) 0 1px, transparent 1px) top/18px 18px;}
+    .viewport{display:flex;align-items:center;justify-content:center;min-height:clamp(40vh,60vh,70vh);border-radius:.75rem;background:rgba(2,6,23,.25)}
+    .placeholder{display:grid;place-items:center;text-align:center;gap:.6rem;color:#b7c5d9}
+    .placeholder svg{opacity:.9}
+    .ph-tip{font-size:.85rem;opacity:.9}
+    .ph-actions{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap}
+    .ph-chip{font-size:.7rem;border:1px dashed rgba(255,255,255,.25);padding:.25rem .5rem;border-radius:.5rem}
+    .img-frame{max-height:75vh;max-width:100%;width:100%;object-fit:contain;border-radius:.5rem;box-shadow:0 8px 26px rgba(2,6,23,.55)}
+    #svgwrap{max-height:75vh;overflow:auto}
+
+    /* Working & progress */
+    .working{
+      position:absolute; top:.75rem; right:.75rem; font-size:.75rem;
+      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
+      padding:.25rem .5rem; border-radius:.4rem; display:none;
+    }
+    .working.show{display:inline-flex;align-items:center;gap:.4rem}
+    .progress{display:none; gap:.5rem; align-items:center; margin-top:.75rem}
+    .progress.show{display:flex}
+    .bar{position:relative; flex:1; height:8px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden}
+    .bar > span{position:absolute; inset:0 auto 0 0; width:0%; background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent)); border-radius:999px; transition:width .18s ease}
+    .steps{display:flex; gap:.25rem; flex-wrap:wrap}
+    .chip{font-size:.7rem; padding:.15rem .45rem; border-radius:.5rem; border:1px solid rgba(255,255,255,.18); color:#cdd8e6; opacity:.6}
+    .chip.active{opacity:1; border-color:rgba(255,255,255,.35)}
+    .chip.done{opacity:1; background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.25)}
+
+    /* Inline help (details/summary) */
+    details.hint{margin-top:.35rem;border:1px dashed rgba(255,255,255,.12);border-radius:.6rem;background:rgba(255,255,255,.02)}
+    details.hint[open]{background:rgba(255,255,255,.04)}
+    details.hint > summary{
+      cursor:pointer; list-style:none; display:flex; align-items:center; gap:.5rem;
+      padding:.45rem .6rem; color:#cfe1ee; font-size:.8rem; user-select:none;
+    }
+    details.hint > summary::-webkit-details-marker{display:none}
+    details.hint > summary svg{opacity:.9; flex:none}
+    details.hint .hint-body{padding:.2rem .8rem .7rem .8rem; color:#cfe1ee; font-size:.82rem; line-height:1.35}
+    details.hint .hint-body code{color:#d9f1ff}
+    .label-row{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+  </style>
+</head>
+<body class="min-h-screen selection:bg-slate-800/50">
+
+  <!-- Header -->
+  <header class="max-w-[1400px] mx-auto px-5 py-6 flex items-center gap-4 flex-wrap">
+    <div class="logo-mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="30" height="30" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#6d5dff"/><stop offset="1" stop-color="#00b3c6"/></linearGradient></defs>
+        <rect x="2" y="2" width="44" height="44" rx="8" fill="url(#g)" opacity=".12"/>
+        <path d="M14 12h14a6 6 0 0 1 0 12H14v4h14" stroke="url(#g)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="mr-auto">
+      <div class="flex items-center gap-1">
+        <h1 class="text-xl font-semibold tracking-tight">Escalade Vector Tools</h1>
+        <span class="es-badge ml-3">Private</span>
+      </div>
+      <p class="text-xs mono mt-0.5">Hybrid raster → SVG · Distinct-first palette · v3.3</p>
+    </div>
+    <nav class="flex items-center gap-3">
+      <a href="https://donate.stripe.com/4gM4gBcmO1nG9PA5zF1B601" target="_blank" rel="noopener" class="es-btn es-btn-primary">Tip the Developer</a>
+      <button id="downloadBtnTop" class="es-btn es-btn-ghost" style="display:none">Export SVG</button>
+    </nav>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-[1400px] mx-auto px-5 pb-14 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left controls -->
+    <aside class="lg:col-span-4 xl:col-span-3">
+      <section class="card p-6 sticky top-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Controls</h2>
+          <button id="resetAll" class="es-btn es-btn-ghost" title="Reset all to defaults">Reset</button>
+        </div>
+
+        <div class="flex items-center gap-2 mb-3">
+          <select id="presetSelect" class="w-full bg-transparent border border-transparent rounded-md px-3 py-2 text-sm mono"></select>
+          <button id="savePreset" class="es-btn es-btn-ghost" title="Save current as preset">Save</button>
+        </div>
+
+        <label class="block text-sm text-slate-300">Upload image</label>
+        <div class="mt-2 flex items-center gap-2">
+          <input id="file" type="file" accept="image/*" class="block w-full text-sm" />
+          <button id="resetBtn" class="es-btn es-btn-ghost">Clear</button>
+        </div>
+        <p class="mt-2 text-xs mono">PNG · JPG · WebP. Images are scaled down to 3000px on the long edge.</p>
+
+        <!-- Step 1 -->
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold">1 • Preprocess & Quantize</h3>
+
+          <!-- K -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Colors (K)</label><span id="kVal" class="text-xs mono">12</span></div>
+            <input id="k" type="range" min="2" max="64" step="1" value="12" class="w-full mt-1" />
+            <details class="hint">
+              <summary>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg>
+                What it does
+              </summary>
+              <div class="hint-body">
+                Sets the number of output colors. Lower values create flat, posterized art and smaller SVGs. Higher values preserve gradients and detail but can add many paths (bigger files).
+                <div class="mt-1"><em>Tip:</em> Logos 6–12 · Photos 16–32.</div>
+              </div>
+            </details>
+          </div>
+
+          <!-- Smoothing -->
+          <div class="mt-3">
+            <div class="label-row"><label class="text-sm">Edge smoothing</label><span id="smoothVal" class="text-xs mono">1</span></div>
+            <input id="smooth" type="range" min="0" max="2" step="1" value="1" class="w-full mt-1" />
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Applies a quick neighborhood blur before quantization to reduce speckles. Higher values smooth noise but can soften sharp edges.
+                <div class="mt-1"><em>Use when:</em> input has JPEG noise or tiny artifacts.</div>
+              </div>
+            </details>
+          </div>
+
+          <!-- White/Black snap -->
+          <div class="controls-grid mt-3">
+            <div>
+              <div class="label-row"><label class="text-sm">Snap near-white → white</label><span id="wVal" class="text-xs mono">245</span></div>
+              <input id="whiteT" type="range" min="200" max="255" step="1" value="245" class="w-full mt-1" />
+              <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+                <div class="hint-body">
+                  Pushes very light pixels to pure white. Helps flatten paper scans and UI screenshots. Too high may erase subtle highlights.
+                </div>
+              </details>
+            </div>
+            <div>
+              <div class="label-row"><label class="text-sm">Snap near-black → black</label><span id="bVal" class="text-xs mono">25</span></div>
+              <input id="blackT" type="range" min="0" max="80" step="1" value="25" class="w-full mt-1" />
+              <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+                <div class="hint-body">
+                  Pulls very dark pixels to pure black. Great for text/line art. Too high may crush shadow detail.
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <label class="inline-flex items-center gap-2 text-xs mt-3 mono">
+            <input id="desat" type="checkbox" class="accent-slate-300" />
+            Desaturate first (grayscale)
+          </label>
+          <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+            <div class="hint-body">
+              Converts the image to grayscale before palette selection. Useful for diagrams or when color is distracting.
+              Expect fewer colors and simpler shapes.
+            </div>
+          </details>
+
+          <div class="mt-2 grid grid-cols-1 gap-2">
+            <label class="inline-flex items-center gap-2 text-xs mono">
+              <input id="distinctPalette" type="checkbox" class="accent-slate-300" checked />
+              Distinct-first palette (Max ΔE)
+            </label>
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Picks palette colors that are **far apart** in CIELAB space first, so adjacent regions are clearly different.
+                Prevents muddy duplicates and increases readability; may sacrifice subtle tonal ramps.
+              </div>
+            </details>
+
+            <label class="inline-flex items-center gap-2 text-xs mono">
+              <input id="lockWB" type="checkbox" class="accent-slate-300" checked />
+              Lock near-white/near-black
+            </label>
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Forces pure white and pure black into the palette (when present). Keeps backgrounds clean and text crisp.
+              </div>
+            </details>
+
+            <div class="flex items-center gap-2 text-xs mono">
+              <span>Min ΔE</span>
+              <input id="minDelta" type="range" min="4" max="24" step="1" value="12" class="w-full"/>
+              <span id="minDeltaVal">12</span>
+            </div>
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Minimum color distance between palette entries (ΔE76). Higher = more distinct colors, fewer near-duplicates.
+                Very high values can drift away from the original image’s subtleties.
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold">2 • Vectorize</h3>
+
+          <!-- ltres -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Corner fidelity (ltres)</label><span id="ltVal" class="text-xs mono">1.0</span></div>
+            <input id="ltres" type="range" min="0.5" max="3" step="0.1" value="1.0" class="w-full mt-1" />
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Tolerance for straight segments. Lower = tighter fit (more nodes, sharper corners). Higher = simpler geometry (fewer nodes) but corners may round off.
+              </div>
+            </details>
+          </div>
+
+          <!-- qtres -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Curve smoothness (qtres)</label><span id="qtVal" class="text-xs mono">1.0</span></div>
+            <input id="qtres" type="range" min="0.5" max="3" step="0.1" value="1.0" class="w-full mt-1" />
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Tolerance for quadratic curves. Lower keeps wavy detail; higher simplifies curves into smoother shapes.
+              </div>
+            </details>
+          </div>
+
+          <!-- pathomit -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Despeckle / min area</label><span id="omitVal" class="text-xs mono">8</span></div>
+            <input id="pathomit" type="range" min="0" max="80" step="1" value="8" class="w-full mt-1" />
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Drops very small paths below this area threshold. Higher removes speckles and micro-noise; too high can delete fine features (dots/accents).
+              </div>
+            </details>
+          </div>
+
+          <!-- roundcoords -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Coordinate precision</label><span id="rcVal" class="text-xs mono">1</span></div>
+            <input id="roundcoords" type="range" min="0" max="3" step="0.5" value="1" class="w-full mt-1" />
+            <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> What it does</summary>
+              <div class="hint-body">
+                Rounds SVG path coordinates to fewer decimals. Lower numbers shrink file size but can introduce stair-stepping; higher preserves fidelity with slightly larger files.
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4">
+          <label class="inline-flex items-center gap-2 text-sm mono"><input id="autoprev" type="checkbox" class="accent-slate-300" checked /> Live preview</label>
+          <button id="runBtn" class="es-btn es-btn-primary" disabled>Loading engine…</button>
+        </div>
+        <details class="hint"><summary><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="7"/><path d="M8 11V8M8 5h.01"/></svg> About live preview</summary>
+          <div class="hint-body">
+            Re-runs vectorization while you adjust sliders (debounced). Turn it off to make large changes, then click <strong>Vectorize</strong>.
+          </div>
+        </details>
+
+        <div id="err" class="hidden mt-3 text-xs text-rose-300 mono"></div>
+      </section>
+    </aside>
+
+    <!-- Right: Preview panels -->
+    <section class="lg:col-span-8 xl:col-span-9 space-y-4">
+
+      <!-- Raster panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-2 00" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4-4 4 4 8-8"/></svg>
+          <div class="panel-title">Raster (input)</div>
+          <div class="ml-auto text-xs mono" id="rasterMeta"></div>
+        </div>
+        <div class="panel-body">
+          <div id="rasterEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M7 7l2-3h6l2 3M5 21h14a2 2 0 0 0 2-2V7H3v12a2 2 0 0 0 2 2Z"/>
+              </svg>
+              <div class="ph-tip mt-2">Drag & drop an image here, or use <em>Upload image</em>.</div>
+              <div class="ph-actions mt-2">
+                <span class="ph-chip">PNG</span><span class="ph-chip">JPG</span><span class="ph-chip">WebP</span>
+              </div>
+            </div>
+          </div>
+          <div id="rasterWrap" class="viewport" style="display:none;">
+            <img id="raster" alt="uploaded image" class="img-frame" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Vector panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M3 11h18M4 19h16"/></svg>
+          <div class="panel-title">Vector (output)</div>
+          <div class="ml-auto">
+            <button id="downloadBtn" class="es-btn es-btn-ghost disabled" disabled>Download SVG</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="svgEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/>
+              </svg>
+              <div class="ph-tip mt-2">Click <strong>Vectorize</strong> to generate your SVG.</div>
+            </div>
+          </div>
+          <div id="svgwrap" class="viewport"></div>
+
+          <!-- Working + Progress -->
+          <div id="working" class="working" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v3m0 12v3m9-9h-3M6 12H3m13.364 6.364l-2.121-2.121M8.757 8.757L6.636 6.636m10.728 0l-2.121 2.121M8.757 15.243l-2.121 2.121"/></svg> Working…</div>
+          <div id="progress" class="progress" aria-hidden="true">
+            <div class="bar" aria-label="Vectorization progress"><span id="bar"></span></div>
+            <div class="steps">
+              <span id="step0" class="chip">Preprocess</span>
+              <span id="step1" class="chip">Quantize</span>
+              <span id="step2" class="chip">Trace</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <canvas id="work" class="hidden"></canvas>
+    </section>
+  </main>
+
+  <!-- ImageTracer loader -->
+  <script>
+    (function loadImageTracer(){
+      function inject(src, onload){ var s=document.createElement('script'); s.src=src; s.defer=true; s.onload=onload; s.onerror=function(){ onload(new Error('Failed '+src)); }; document.head.appendChild(s); }
+      function ready(){ return typeof window.ImageTracer !== 'undefined'; }
+      function enable(){ document.getElementById('runBtn').textContent='Vectorize'; document.getElementById('runBtn').disabled=false; }
+      if(ready()){ enable(); return; }
+      inject('https://unpkg.com/imagetracerjs/imagetracer_v1.2.6.min.js', function(){ if(ready()) return enable();
+        inject('https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js', function(){ if(ready()) enable(); else { const e=document.getElementById('err'); e.classList.remove('hidden'); e.textContent='Could not load vectorization engine.'; }});
+      });
+    })();
+  </script>
+
+  <!-- Core app (scheduler + progress + distinct-first + anti-seam) -->
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const st = { k:12, smooth:1, whiteT:245, blackT:25, desat:false, lt:1.0, qt:1.0, omit:8, rc:1, autoprev:true, file:null, svg:null, imgReady:false, working:false,
+                 distinctPalette:true, lockWB:true, minDelta:12 };
+
+    const BUILTINS = [
+      { name:'Logo / Flat',   s:{k:8,  smooth:0, whiteT:250, blackT:15, desat:false, lt:1.2, qt:1.2, omit:6,  rc:1.0}},
+      { name:'Poster / Text', s:{k:14, smooth:1, whiteT:245, blackT:25, desat:false, lt:1.3, qt:1.6, omit:10, rc:1.0}},
+      { name:'Illustration',  s:{k:24, smooth:1, whiteT:242, blackT:22, desat:false, lt:1.0, qt:1.0, omit:8,  rc:1.0}},
+      { name:'Pixel Art',     s:{k:12, smooth:0, whiteT:255, blackT:0,  desat:false, lt:0.8, qt:0.8, omit:0,  rc:0.5}}
+    ];
+    const LS_KEY='pv_presets_v1';
+
+    function loadCustomPresets(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || []; }catch(e){ return []; } }
+    function saveCustomPresets(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+    function populatePresetSelect(selectName=null){
+      const sel = $('presetSelect'); sel.innerHTML='';
+      const bgrp=document.createElement('optgroup'); bgrp.label='Built-in';
+      BUILTINS.forEach((p,i)=>{ const opt=document.createElement('option'); opt.value='b:'+i; opt.textContent=p.name; bgrp.appendChild(opt); });
+      sel.appendChild(bgrp);
+      const custom=loadCustomPresets();
+      if(custom.length){
+        const cgrp=document.createElement('optgroup'); cgrp.label='Custom';
+        custom.forEach((p,i)=>{ const opt=document.createElement('option'); opt.value='c:'+i; opt.textContent=p.name; cgrp.appendChild(opt); });
+        sel.appendChild(cgrp);
+      }
+      if(selectName){ [...sel.options].forEach((o)=>{ if(o.textContent===selectName) sel.value=o.value; }); } else sel.selectedIndex=0;
+    }
+    function applySettings(S){ Object.assign(st, S); sync(); scheduleRun(); }
+
+    /* ---------- Progress helpers ---------- */
+    function showProgress(show){
+      $('working').classList.toggle('show', show);
+      $('progress').classList.toggle('show', show);
+      if(!show){ setBar(0); setStep(0,'idle'); setStep(1,'idle'); setStep(2,'idle'); }
+    }
+    function setBar(p){ $('bar').style.width = Math.max(0, Math.min(100, p)) + '%'; }
+    function setStep(i, state){
+      const el = $('step'+i);
+      el.classList.remove('active','done');
+      if(state==='active') el.classList.add('active');
+      if(state==='done') el.classList.add('done');
+    }
+
+    /* ---------- Responsive run scheduler ---------- */
+    let runToken = 0, runTimer = null;
+    const DEBOUNCE_MS = 200;
+
+    function scheduleRun(){
+      if(!st.autoprev) return;
+      if(runTimer) clearTimeout(runTimer);
+      runTimer = setTimeout(()=>{ runTimer=null; runCancelable(); }, DEBOUNCE_MS);
+    }
+    function yieldNow(ms=0){
+      return new Promise(res=>{
+        if(ms>0) return setTimeout(res, ms);
+        (window.requestAnimationFrame||setTimeout)(()=>res(), 0);
+      });
+    }
+    async function runCancelable(){
+      const myToken = ++runToken;
+      $('svgwrap').innerHTML='';
+      $('svgEmpty').style.display='none';
+      showProgress(true); setBar(10);
+      try{
+        await run(myToken);
+      } finally {
+        if (myToken === runToken){ showProgress(false); }
+      }
+    }
+
+    /* ---------- UI wiring ---------- */
+    $('presetSelect').addEventListener('change', (e)=>{
+      const v=e.target.value;
+      if(v.startsWith('b:')){ const i=+v.split(':')[1]; applySettings(BUILTINS[i].s); }
+      if(v.startsWith('c:')){ const i=+v.split(':')[1]; const arr=loadCustomPresets(); applySettings(arr[i].s); }
+    });
+    $('savePreset').addEventListener('click', ()=>{
+      const name = prompt('Preset name:'); if(!name) return;
+      const arr=loadCustomPresets();
+      const idx = arr.findIndex(p=>p.name.toLowerCase()===name.toLowerCase());
+      const obj={name, s:{k:st.k, smooth:st.smooth, whiteT:st.whiteT, blackT:st.blackT, desat:st.desat, lt:st.lt, qt:st.qt, omit:st.omit, rc:Math.min(st.rc,1)}};
+      if(idx>=0) arr[idx]=obj; else arr.push(obj);
+      saveCustomPresets(arr); populatePresetSelect(name);
+    });
+
+    const sync = () => {
+      // Push state -> controls
+      $('k').value = st.k;
+      $('smooth').value = st.smooth;
+      $('whiteT').value = st.whiteT;
+      $('blackT').value = st.blackT;
+      $('ltres').value = st.lt;
+      $('qtres').value = st.qt;
+      $('pathomit').value = st.omit;
+      $('roundcoords').value = st.rc;
+      $('distinctPalette').checked = st.distinctPalette;
+      $('lockWB').checked = st.lockWB;
+      $('minDelta').value = st.minDelta;
+
+      // Readouts
+      $('kVal').textContent = st.k;
+      $('smoothVal').textContent = st.smooth;
+      $('wVal').textContent = st.whiteT;
+      $('bVal').textContent = st.blackT;
+      $('ltVal').textContent = st.lt.toFixed(2);
+      $('qtVal').textContent = st.qt.toFixed(2);
+      $('omitVal').textContent = st.omit;
+      $('rcVal').textContent = Math.min(st.rc, 1);
+      $('minDeltaVal').textContent = st.minDelta;
+
+      // Download visibility
+      const dl = $('downloadBtn');
+      dl.disabled = !st.svg;
+      dl.classList.toggle('disabled', !st.svg);
+      $('downloadBtnTop').style.display = st.svg ? 'inline-flex' : 'none';
+    };
+
+    for(const [id,prop,fmt] of [['k','k'],['smooth','smooth'],['whiteT','whiteT'],['blackT','blackT'],['ltres','lt',v=>+v],['qtres','qt',v=>+v],['pathomit','omit'],['roundcoords','rc']]){
+      $(id).addEventListener('input',e=>{ st[prop]=fmt?fmt(e.target.value):+e.target.value; sync(); scheduleRun();});
+    }
+    $('desat').addEventListener('change',e=>{ st.desat=e.target.checked; scheduleRun(); });
+    $('distinctPalette').addEventListener('change',e=>{ st.distinctPalette=e.target.checked; scheduleRun(); });
+    $('lockWB').addEventListener('change',e=>{ st.lockWB=e.target.checked; scheduleRun(); });
+    $('minDelta').addEventListener('input',e=>{ st.minDelta=+e.target.value; $('minDeltaVal').textContent=st.minDelta; scheduleRun(); });
+    $('autoprev').addEventListener('change',e=>{ st.autoprev=e.target.checked; });
+
+    $('resetAll').addEventListener('click',()=>{
+      Object.assign(st, {k:12,smooth:1,whiteT:245,blackT:25,desat:false,lt:1.0,qt:1.0,omit:8,rc:1,distinctPalette:true,lockWB:true,minDelta:12});
+      sync(); scheduleRun();
+    });
+
+    $('downloadBtn').addEventListener('click', ()=>{
+      if(!st.svg) return; const blob=new Blob([st.svg],{type:"image/svg+xml;charset=utf-8"});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(st.file?.name?.replace(/\.[^.]+$/,'')||'vectorized')+'.svg'; a.click(); URL.revokeObjectURL(url);
+    });
+    $('downloadBtnTop').addEventListener('click', ()=>{ $('downloadBtn').click(); });
+
+    // File handling + drop
+    $('file').addEventListener('change',ev=>{ handleFile(ev.target.files?.[0]||null); });
+    const dropZone = document.querySelector('#rasterEmpty');
+    ['dragenter','dragover'].forEach(evt=>dropZone.addEventListener(evt,e=>{ e.preventDefault(); dropZone.style.border='2px dashed rgba(255,255,255,.45)'; }));
+    ;['dragleave','drop'].forEach(evt=>dropZone.addEventListener(evt,e=>{ e.preventDefault(); dropZone.style.border=''; }));
+    dropZone.addEventListener('drop',e=>{
+      const f=e.dataTransfer.files?.[0]; if(f) handleFile(f);
+    });
+
+    function handleFile(f){
+      st.file=f||null; st.svg=null; st.imgReady=false; sync();
+      $('svgwrap').innerHTML=''; $('svgEmpty').style.display='grid';
+      if(!f){
+        $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid'; $('raster').src=''; updateMeta(); return;
+      }
+      const r=new FileReader();
+      r.onload=()=>{
+        $('raster').onload=async ()=>{
+          st.imgReady=true;
+          $('rasterWrap').style.display='flex';
+          $('rasterEmpty').style.display='none';
+          updateMeta();
+          await new Promise(res=>(window.requestAnimationFrame||setTimeout)(res,0));
+          if(st.autoprev) runCancelable();
+        };
+        $('raster').src=String(r.result);
+      };
+      r.readAsDataURL(f);
+    }
+
+    function updateMeta(){
+      const el=$('rasterMeta');
+      if(st.file && $('raster').naturalWidth){
+        el.textContent = `${st.file.name} — ${$('raster').naturalWidth}×${$('raster').naturalHeight}px`;
+      } else el.textContent = 'No image loaded';
+    }
+
+    $('resetBtn').addEventListener('click', ()=>{
+      st.file=null; st.svg=null; st.imgReady=false;
+      $('file').value=''; $('raster').src='';
+      $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid';
+      $('svgwrap').innerHTML=''; $('svgEmpty').style.display='grid';
+      updateMeta(); sync();
+    });
+
+    function alertErr(msg){ const e=$('err'); e.classList.remove('hidden'); e.textContent=msg; setTimeout(()=>e.classList.add('hidden'),5000); }
+
+    /* ---------- Color utilities ---------- */
+    function srgbToXyz(c){ c=c/255; return c<=0.04045? c/12.92 : Math.pow((c+0.055)/1.055,2.4); }
+    function rgb2lab(r,g,b){ let R=srgbToXyz(r),G=srgbToXyz(g),B=srgbToXyz(b);
+      let X=R*0.4124564 + G*0.3575761 + B*0.1804375, Y=R*0.2126729 + G*0.7151522 + B*0.0721750, Z=R*0.0193339 + G*0.1191920 + B*0.9503041;
+      const xr=X/0.95047, yr=Y/1.00000, zr=Z/1.08883; function f(t){ return t>0.008856? Math.pow(t,1/3):(7.787*t+16/116); }
+      const fx=f(xr), fy=f(yr), fz=f(zr); return [116*fy-16, 500*(fx-fy), 200*(fy-fz)];
+    }
+    function lab2rgb(L,a,b){
+      let fy=(L+16)/116, fx=a/500 + fy, fz=fy - b/200;
+      function finv(t){ const t3=t*t*t; return t3>0.008856? t3 : (t-16/116)/7.787; }
+      const xr=finv(fx), yr=finv(fy), zr=finv(fz);
+      const X=xr*0.95047, Y=yr*1.00000, Z=zr*1.08883;
+      let R= 3.2404542*X + (-1.5371385)*Y + (-0.4985314)*Z;
+      let G=(-0.9692660)*X +  1.8760108*Y +  0.0415560*Z;
+      let B= 0.0556434*X + (-0.2040259)*Y +  1.0572252*Z;
+      function clamp(v){ return Math.max(0,Math.min(255, Math.round((v<=0.0031308? 12.92*v : 1.055*Math.pow(v,1/2.4)-0.055)*255))); }
+      return [clamp(R),clamp(G),clamp(B)];
+    }
+    function deltaE76(a,b){ const dL=a[0]-b[0], da=a[1]-b[1], db=a[2]-b[2]; return Math.sqrt(dL*dL+da*da+db*db); }
+    const isNearWhiteLab = (L,a,b)=> L>95 && Math.abs(a)<2 && Math.abs(b)<2;
+    const isNearBlackLab = (L)=> L<10;
+
+    /* ---------- Distinct-first palette quantizer ---------- */
+    function buildCandidates(imdata, sample=2){
+      const {data,width,height}=imdata; const N=width*height;
+      const ptsCount=Math.max(1,Math.floor(N/sample));
+      const stats=new Map();
+      for(let i=0;i<ptsCount;i++){
+        const idx=(Math.floor(Math.random()*N))*4;
+        const L=rgb2lab(data[idx],data[idx+1],data[idx+2]);
+        const key = `${Math.round(L[0]*2)/2},${Math.round(L[1])},${Math.round(L[2])}`;
+        const s = stats.get(key) || {sum:[0,0,0],count:0};
+        s.sum[0]+=L[0]; s.sum[1]+=L[1]; s.sum[2]+=L[2]; s.count++;
+        stats.set(key,s);
+      }
+      const candidates=[];
+      stats.forEach(v=>{
+        candidates.push({ lab:[v.sum[0]/v.count, v.sum[1]/v.count, v.sum[2]/v.count], count:v.count });
+      });
+      candidates.sort((a,b)=>b.count-a.count);
+      return candidates;
+    }
+
+    function selectMaxDiversity(cands, k, {lockWB=true, minDelta=12}={}){
+      const palette=[];
+      if(lockWB){
+        const white = cands.find(c=>isNearWhiteLab(c.lab[0],c.lab[1],c.lab[2]));
+        const black = cands.find(c=>isNearBlackLab(c.lab[0]));
+        if(white) palette.push(white.lab);
+        if(black && palette.length<k) palette.push(black.lab);
+      }
+      if(palette.length===0 && cands.length) palette.push(cands[0].lab);
+      while(palette.length<k && cands.length){
+        let best=null, bestScore=-1;
+        const maxCnt=cands[0]?.count||1;
+        for(const c of cands){
+          let dmin=1e9; for(const p of palette){ const d=deltaE76(c.lab,p); if(d<dmin) dmin=d; }
+          const freqBoost = 0.12*(c.count/maxCnt);
+          const score = dmin + freqBoost;
+          if(dmin >= minDelta && score>bestScore){ best=c; bestScore=score; }
+        }
+        if(!best){
+          for(const c of cands){
+            let dmin=1e9; for(const p of palette){ const d=deltaE76(c.lab,p); if(d<dmin) dmin=d; }
+            if(dmin>bestScore){ best=c; bestScore=dmin; }
+          }
+        }
+        palette.push(best.lab);
+        for(let i=cands.length-1;i>=0;i--){
+          if(deltaE76(cands[i].lab, best.lab)<(minDelta*0.6)) cands.splice(i,1);
+        }
+        if(cands.length===0) break;
+      }
+      return palette.slice(0,k);
+    }
+
+    function refineMedoids(cands, palette){
+      const clusters=palette.map(()=>[]);
+      for(const c of cands){
+        let bi=0,bd=1e9; for(let i=0;i<palette.length;i++){ const d=deltaE76(c.lab, palette[i]); if(d<bd){bd=d;bi=i;} }
+        clusters[bi].push(c);
+      }
+      for(let i=0;i<palette.length;i++){
+        const cluster = clusters[i]; if(cluster.length===0) continue;
+        let best=cluster[0], bestSum=1e18;
+        for(const a of cluster){ let sum=0; for(const b of cluster){ sum += deltaE76(a.lab,b.lab) * b.count; } if(sum<bestSum){ bestSum=sum; best=a; } }
+        palette[i]=best.lab;
+      }
+      return palette;
+    }
+
+    function quantizeDistinct(imdata, k, {lockWB=true, minDelta=12, sample=2}={}){
+      const {data,width,height}=imdata; const N=width*height;
+      const cands=buildCandidates(imdata, sample);
+      let palette=selectMaxDiversity(cands.slice(), k, {lockWB, minDelta});
+      palette=refineMedoids(cands, palette);
+      for(let i=0;i<N;i++){
+        const j=i*4; const p=rgb2lab(data[j],data[j+1],data[j+2]);
+        let bi=0,bd=1e9; for(let c=0;c<palette.length;c++){ const d=deltaE76(p,palette[c]); if(d<bd){bd=d;bi=c;} }
+        const [r,g,b]=lab2rgb(palette[bi][0],palette[bi][1],palette[bi][2]);
+        data[j]=r; data[j+1]=g; data[j+2]=b;
+      }
+      return imdata;
+    }
+
+    /* ---------- Image smoothing ---------- */
+    function smoothImage(data,w,h,iters=1){
+      if(iters<=0) return data;
+      const out=new Uint8ClampedArray(data.length);
+      for(let t=0;t<iters;t++){
+        for(let y=0;y<h;y++){
+          for(let x=0;x<w;x++){
+            const i=(y*w+x)*4;
+            let accR=0,accG=0,accB=0,accA=0, cnt=0;
+            function add(xx,yy){ const j=(yy*w+xx)*4; accR+=data[j]; accG+=data[j+1]; accB+=data[j+2]; accA+=data[j+3]; cnt++; }
+            add(x,y); if(x>0) add(x-1,y); if(x<w-1) add(x+1,y); if(y>0) add(x,y-1); if(y<h-1) add(x,y+1);
+            out[i]=accR/cnt; out[i+1]=accG/cnt; out[i+2]=accB/cnt; out[i+3]=accA/cnt;
+          }
+        }
+        data.set(out);
+      }
+      return data;
+    }
+
+    /* ---------- SVG post-processor (safe & anti-seam) ---------- */
+    function postProcessSVG(svg, { bg = '#0a1224', strokeWidth = 0.35 } = {}) {
+      svg = svg.replace(/<svg([^>]*)>/, `<svg$1><style>*{shape-rendering:geometricPrecision}</style><rect width="100%" height="100%" fill="${bg}"/>`);
+      svg = svg.replace(/<path\b[^>]*>/g, (tag)=>{
+        let t = tag.replace(/\s+stroke(?:-width|-linejoin|-linecap)?="[^"]*"/gi, '');
+        t = t.replace(/style="([^"]*)"/gi, (m, style)=>{
+          const cleaned = style.replace(/stroke(?:-width|-linejoin|-linecap)?\s*:\s*[^;"]*;?/gi,'').trim().replace(/;{2,}/g,';').replace(/^;|;$/g,'');
+          return cleaned ? `style="${cleaned}"` : '';
+        });
+        const withStroke = t.replace(/<path\b([^>]*?)\sfill="([^"]+)"([^>]*)>/i, `<path $1 fill="$2" stroke="$2" stroke-width="${strokeWidth}" stroke-linejoin="round"$3>`);
+        return withStroke;
+      });
+      return svg;
+    }
+
+    /* ---------- Main pipeline with progress ---------- */
+    async function run(myToken){
+      if(!st.file || !st.imgReady) return;
+      if(typeof window.ImageTracer==='undefined'){ alertErr('Vectorization engine not loaded'); return; }
+      if(st.working) return;
+      st.working=true; const btn=$('runBtn'); const old=btn.textContent; btn.textContent='Vectorizing…'; btn.disabled=true;
+
+      try{
+        const img=$('raster'), canvas=$('work'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+        const MAX=3000; const scale=Math.min(1, MAX/Math.max(img.naturalWidth||1, img.naturalHeight||1));
+        canvas.width=Math.max(1,Math.round((img.naturalWidth||1)*scale));
+        canvas.height=Math.max(1,Math.round((img.naturalHeight||1)*scale));
+
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+        // Start progress
+        setBar(10); setStep(0,'active'); setStep(1,'idle'); setStep(2,'idle');
+
+        await yieldNow();
+        let imdata=ctx.getImageData(0,0,canvas.width,canvas.height);
+
+        // Preprocess
+        (function preprocess(imdata, whiteT, blackT, desat){
+          const d=imdata.data;
+          for(let i=0;i<d.length;i+=4){
+            let r=d[i], g=d[i+1], b=d[i+2], a=d[i+3];
+            if(a<10) continue;
+            if(desat){ const y=(0.2126*r+0.7152*g+0.0722*b)|0; r=g=b=y; }
+            const max=Math.max(r,g,b), min=Math.min(r,g,b); const s=max===0?0:(max-min)/max;
+            if((r>=whiteT&&g>=whiteT&&b>=whiteT) || (s<0.12 && r>=whiteT-5&&g>=whiteT-5&&b>=whiteT-5)){ r=g=b=255; }
+            else if((r<=blackT&&g<=blackT&&b<=blackT) || (s<0.12 && r<=blackT+5&&g<=blackT+5&&b<=blackT+5)){ r=g=b=0; }
+            d[i]=r; d[i+1]=g; d[i+2]=b;
+          }
+        })(imdata, st.whiteT, st.blackT, st.desat);
+        if(myToken!==runToken) return;
+        setBar(30); setStep(0,'done'); setStep(1,'active');
+        await yieldNow();
+
+        // Smoothing
+        smoothImage(imdata.data, canvas.width, canvas.height, st.smooth);
+        if(myToken!==runToken) return;
+        setBar(50);
+        await yieldNow();
+
+        // Quantize
+        quantizeDistinct(imdata, st.k, {lockWB:st.lockWB, minDelta:st.minDelta, sample:2});
+        if(myToken!==runToken) return;
+        setBar(75); setStep(1,'done'); setStep(2,'active');
+        await yieldNow();
+
+        // Trace (vectorize)
+        const svgraw = ImageTracer.imagedataToSVG(imdata, {
+          numberofcolors: st.k, ltres: st.lt, qtres: st.qt, pathomit: st.omit,
+          blurradius: 0, blurdelta: 64, roundcoords: Math.min(st.rc, 1), viewbox: true, desc: true
+        });
+        if(myToken!==runToken) return;
+
+        const svgstr = postProcessSVG(svgraw, { bg: '#0a1224', strokeWidth: 0.35 });
+        if(myToken!==runToken) return;
+
+        st.svg=svgstr;
+        $('svgwrap').innerHTML=svgstr;
+        $('svgEmpty').style.display='none';
+        setBar(100); setStep(2,'done');
+      }catch(err){ console.error(err); alertErr("Vectorization failed — "+(err?.message||String(err))); }
+      finally{ st.working=false; const btn=$('runBtn'); btn.textContent='Vectorize'; btn.disabled=false; sync(); }
+    }
+
+    function init(){
+      populatePresetSelect(); applySettings(BUILTINS[1].s); sync();
+      $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid'; $('svgEmpty').style.display='grid';
+    }
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
