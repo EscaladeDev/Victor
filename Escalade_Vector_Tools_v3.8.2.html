@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Escalade — Vector Tools (v3.8.2.1 • hover help + distinct palette fix + caching)</title>
+  <meta name="description" content="Escalade Vector Tools — raster→SVG vectorizer with hover help, perceptual ΔE00 palette with hue separation + chroma floor, adjacency-aware assignment, anti-seam export, responsive UI, progress, and caching." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --es-bg-1:#071028; --es-bg-2:#071826;
+      --es-accent:#00b3c6; --es-accent-2:#6d5dff;
+      --es-muted:#9fb0c8; --es-border:rgba(255,255,255,.06);
+      --es-card:rgba(255,255,255,.02);
+    }
+    html,body{
+      height:100%;
+      background:
+        radial-gradient(1200px 800px at 10% 10%, rgba(13,30,50,.55), transparent 8%),
+        linear-gradient(180deg,var(--es-bg-1),var(--es-bg-2));
+      color:#e6f0f6;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+    .card{border-radius:1rem;border:1px solid var(--es-border);background:linear-gradient(180deg,var(--es-card),transparent);backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(2,6,23,.6)}
+    .es-badge{font-size:.7rem;padding:.25rem .55rem;border-radius:.6rem;border:1px solid var(--es-border);color:#9fb0c8}
+    .es-btn{display:inline-flex;align-items:center;gap:.55rem;border-radius:.7rem;padding:.55rem .9rem;font-weight:700;letter-spacing:.01em;border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:transform .05s ease}
+    .es-btn:active{transform:translateY(1px)}
+    .es-btn-primary{background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent));color:#02131a}
+    .es-btn-ghost{color:#9fb0c8;background:transparent}
+    .logo-mark{width:44px;height:44px;border-radius:.85rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, rgba(109,93,255,.16), rgba(0,179,198,.06));border:1px solid rgba(255,255,255,.08)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Roboto Mono",monospace;color:#9fb0c8}
+    .controls-grid{display:grid;gap:.75rem;grid-template-columns:1fr 1fr}
+    @media (max-width:1024px){.controls-grid{grid-template-columns:1fr}.logo-mark{width:36px;height:36px}}
+    input[type=file]::file-selector-button{background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent));color:#02131a;padding:.45rem .7rem;margin-right:.5rem;border-radius:.55rem;border:none;font-weight:700}
+    .disabled{opacity:.45;pointer-events:none}
+
+    /* Panels */
+    .panel-head{display:flex;align-items:center;gap:.6rem;border-bottom:1px solid rgba(255,255,255,.06);padding:.7rem 1rem}
+    .panel-title{font-weight:600}
+    .panel-body{position:relative;padding:clamp(.5rem,1.5vw,1rem);background:
+      linear-gradient(0deg, rgba(255,255,255,.02), rgba(255,255,255,.02)),
+      radial-gradient(circle at 25% 10%, rgba(255,255,255,.04) 0 1px, transparent 1px) top/18px 18px,
+      radial-gradient(circle at 75% 90%, rgba(255,255,255,.04) 0 1px, transparent 1px) top/18px 18px;}
+    .viewport{display:flex;align-items:center;justify-content:center;min-height:clamp(40vh,60vh,70vh);border-radius:.75rem;background:rgba(2,6,23,.25)}
+    .placeholder{display:grid;place-items:center;text-align:center;gap:.6rem;color:#b7c5d9}
+    .placeholder svg{opacity:.9}
+    .ph-tip{font-size:.85rem;opacity:.9}
+    .ph-actions{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap}
+    .ph-chip{font-size:.7rem;border:1px dashed rgba(255,255,255,.25);padding:.25rem .5rem;border-radius:.5rem}
+    .img-frame{max-height:75vh;max-width:100%;width:100%;object-fit:contain;border-radius:.5rem;box-shadow:0 8px 26px rgba(2,6,23,.55)}
+    #svgwrap{max-height:75vh;overflow:auto}
+
+    /* Working & progress */
+    .working{ position:absolute; top:.75rem; right:.75rem; font-size:.75rem; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); padding:.25rem .5rem; border-radius:.4rem; display:none; }
+    .working.show{display:inline-flex;align-items:center;gap:.4rem}
+    .progress{display:none; gap:.5rem; align-items:center; margin-top:.75rem}
+    .progress.show{display:flex}
+    .bar{position:relative; flex:1; height:8px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden}
+    .bar > span{position:absolute; inset:0 auto 0 0; width:0%; background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent)); border-radius:999px; transition:width .18s ease}
+    .steps{display:flex; gap:.25rem; flex-wrap:wrap}
+    .chip{font-size:.7rem; padding:.15rem .45rem; border-radius:.5rem; border:1px solid rgba(255,255,255,.18); color:#cdd8e6; opacity:.6}
+    .chip.active{opacity:1; border-color:rgba(255,255,255,.35)}
+    .chip.done{opacity:1; background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.25)}
+
+    /* Hover help */
+    .help{position:relative; display:inline-flex; align-items:center; margin-left:.35rem}
+    .help .q{display:inline-grid; place-items:center; width:18px; height:18px; border-radius:999px; font-weight:800; font-size:12px; line-height:1; color:#05101a; background:linear-gradient(90deg,var(--es-accent-2),var(--es-accent)); border:1px solid rgba(255,255,255,.12)}
+    .help .tip{position:absolute; z-index:40; bottom:calc(100% + 8px); right:0; min-width:200px; max-width:320px; padding:.5rem .6rem; border-radius:.55rem; background:rgba(8,16,32,.96); border:1px solid var(--es-border); box-shadow:0 10px 30px rgba(2,6,23,.55); font-size:.78rem; line-height:1.35; color:#cfe1ee; opacity:0; transform:translateY(-4px); transition:opacity .15s ease, transform .15s ease; pointer-events:none}
+    .help:hover .tip, .help:focus-within .tip{opacity:1; transform:translateY(-8px); pointer-events:auto}
+    .help .tip:after{content:""; position:absolute; top:100%; right:10px; width:10px; height:10px; background:rgba(8,16,32,.96); border-right:1px solid var(--es-border); border-bottom:1px solid var(--es-border); transform:translateY(-6px) rotate(45deg)}
+
+    .label-row{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+
+    /* Progress feedback states */
+    .chip.cached{opacity:.9;border-style:dashed;border-color:rgba(255,255,255,.28)}
+    .chip.queued{opacity:1;border-color:var(--es-accent);box-shadow:0 0 0 1px rgba(0,179,198,.35) inset}
+    .chip.skip{opacity:.35}
+    .bar.pulse > span{width:8%;animation:pulse 1s ease-in-out infinite}
+    @keyframes pulse{0%{opacity:.35}50%{opacity:.95}100%{opacity:.35}}
+
+  </style>
+</head>
+<body class="min-h-screen selection:bg-slate-800/50">
+
+  <!-- Header -->
+  <header class="max-w-[1400px] mx-auto px-5 py-6 flex items-center gap-4 flex-wrap">
+    <div class="logo-mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="30" height="30" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#6d5dff"/><stop offset="1" stop-color="#00b3c6"/></linearGradient></defs>
+        <rect x="2" y="2" width="44" height="44" rx="8" fill="url(#g)" opacity=".12"/>
+        <path d="M14 12h14a6 6 0 0 1 0 12H14v4h14" stroke="url(#g)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="mr-auto">
+      <div class="flex items-center gap-1">
+        <h1 class="text-xl font-semibold tracking-tight">Escalade Vector Tools</h1>
+        <span class="es-badge ml-3">Private</span>
+      </div>
+      <p class="text-xs mono mt-0.5">Hybrid raster → SVG · Perceptual palette · v3.8.2</p>
+    </div>
+    <nav class="flex items-center gap-3">
+      <a href="https://donate.stripe.com/4gM4gBcmO1nG9PA5zF1B601" target="_blank" rel="noopener" class="es-btn es-btn-primary">Tip the Developer</a>
+      <button id="downloadBtnTop" class="es-btn es-btn-ghost" style="display:none">Export SVG</button>
+    </nav>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-[1400px] mx-auto px-5 pb-14 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left controls -->
+    <aside class="lg:col-span-4 xl:col-span-3">
+      <section class="card p-6 sticky top-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Controls</h2>
+          <button id="resetAll" class="es-btn es-btn-ghost" title="Reset all to defaults">Reset</button>
+        </div>
+
+        <div class="flex items-center gap-2 mb-3">
+          <select id="presetSelect" class="w-full bg-transparent border border-transparent rounded-md px-3 py-2 text-sm mono"></select>
+          <button id="savePreset" class="es-btn es-btn-ghost" title="Save current as preset">Save</button>
+        </div>
+
+        <label class="block text-sm text-slate-300">Upload image</label>
+        <div class="mt-2 flex items-center gap-2">
+          <input id="file" type="file" accept="image/*" class="block w-full text-sm" />
+          <button id="resetBtn" class="es-btn es-btn-ghost">Clear</button>
+        </div>
+        <p class="mt-2 text-xs mono">PNG · JPG · WebP. Images are scaled down to 3000px on the long edge.</p>
+
+        <!-- Step 1 -->
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold">1 • Preprocess & Quantize</h3>
+
+          <!-- K -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Colors (K)</label><span id="kVal" class="text-xs mono">12</span></div>
+            <input id="k" type="range" min="2" max="64" step="1" value="12" class="w-full mt-1" />
+          </div>
+
+          <!-- Smoothing -->
+          <div class="mt-3">
+            <div class="label-row"><label class="text-sm">Edge smoothing</label><span id="smoothVal" class="text-xs mono">1</span></div>
+            <input id="smooth" type="range" min="0" max="2" step="1" value="1" class="w-full mt-1" />
+          </div>
+
+          <!-- White/Black snap -->
+          <div class="controls-grid mt-3">
+            <div>
+              <div class="label-row"><label class="text-sm">Snap near-white → white</label><span id="wVal" class="text-xs mono">245</span></div>
+              <input id="whiteT" type="range" min="200" max="255" step="1" value="245" class="w-full mt-1" />
+            </div>
+            <div>
+              <div class="label-row"><label class="text-sm">Snap near-black → black</label><span id="bVal" class="text-xs mono">25</span></div>
+              <input id="blackT" type="range" min="0" max="80" step="1" value="25" class="w-full mt-1" />
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <label class="inline-flex items-center gap-2 text-xs mt-3 mono">
+            <input id="desat" type="checkbox" class="accent-slate-300" />
+            Desaturate first (grayscale)
+          </label>
+
+          <div class="mt-2 grid grid-cols-1 gap-2">
+            <label class="inline-flex items-center gap-2 text-xs mono">
+              <input id="distinctPalette" type="checkbox" class="accent-slate-300" checked />
+              Distinct-first palette (ΔE00)
+            </label>
+
+            <label class="inline-flex items-center gap-2 text-xs mono">
+              <input id="lockWB" type="checkbox" class="accent-slate-300" checked />
+              Lock near-white/near-black
+            </label>
+
+            <div class="flex items-center gap-2 text-xs mono">
+              <span>Min ΔE</span>
+              <input id="minDelta" type="range" min="8" max="36" step="1" value="18" class="w-full"/>
+              <span id="minDeltaVal">18</span>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs mono">
+              <span>Hue separation (°)</span>
+              <input id="hueSep" type="range" min="0" max="60" step="1" value="25" class="w-full"/>
+              <span id="hueSepVal">25</span>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs mono">
+              <span>Chroma floor</span>
+              <input id="chromaFloor" type="range" min="0" max="40" step="1" value="12" class="w-full"/>
+              <span id="chromaFloorVal">12</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold">2 • Vectorize</h3>
+
+          <!-- ltres -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Corner fidelity (ltres)</label><span id="ltVal" class="text-xs mono">1.0</span></div>
+            <input id="ltres" type="range" min="0.5" max="3" step="0.1" value="1.0" class="w-full mt-1" />
+          </div>
+
+          <!-- qtres -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Curve smoothness (qtres)</label><span id="qtVal" class="text-xs mono">1.0</span></div>
+            <input id="qtres" type="range" min="0.5" max="3" step="0.1" value="1.0" class="w-full mt-1" />
+          </div>
+
+          <!-- pathomit -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Despeckle / min area</label><span id="omitVal" class="text-xs mono">8</span></div>
+            <input id="pathomit" type="range" min="0" max="80" step="1" value="8" class="w-full mt-1" />
+          </div>
+
+          <!-- roundcoords -->
+          <div class="mt-2">
+            <div class="label-row"><label class="text-sm">Coordinate precision</label><span id="rcVal" class="text-xs mono">1</span></div>
+            <input id="roundcoords" type="range" min="0" max="3" step="0.5" value="1" class="w-full mt-1" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4">
+          <label class="inline-flex items-center gap-2 text-sm mono"><input id="autoprev" type="checkbox" class="accent-slate-300" checked /> Live preview</label>
+          <button id="runBtn" class="es-btn es-btn-primary" disabled>Loading engine…</button>
+        </div>
+
+        <div id="err" class="hidden mt-3 text-xs text-rose-300 mono"></div>
+      </section>
+    </aside>
+
+    <!-- Right: Preview panels -->
+    <section class="lg:col-span-8 xl:col-span-9 space-y-4">
+
+      <!-- Raster panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4-4 4 4 8-8"/></svg>
+          <div class="panel-title">Raster (input)</div>
+          <div class="ml-auto text-xs mono" id="rasterMeta"></div>
+        </div>
+        <div class="panel-body">
+          <div id="rasterEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M7 7l2-3h6l2 3M5 21h14a2 2 0 0 0 2-2V7H3v12a2 2 0 0 0 2 2Z"/>
+              </svg>
+              <div class="ph-tip mt-2">Drag & drop an image here, or use <em>Upload image</em>.</div>
+              <div class="ph-actions mt-2">
+                <span class="ph-chip">PNG</span><span class="ph-chip">JPG</span><span class="ph-chip">WebP</span>
+              </div>
+            </div>
+          </div>
+          <div id="rasterWrap" class="viewport" style="display:none;">
+            <img id="raster" alt="uploaded image" class="img-frame" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Vector panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M3 11h18M4 19h16"/></svg>
+          <div class="panel-title">Vector (output)</div>
+          <div class="ml-auto">
+            <button id="downloadBtn" class="es-btn es-btn-ghost disabled" disabled>Download SVG</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="svgEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/>
+              </svg>
+              <div class="ph-tip mt-2">Click <strong>Vectorize</strong> to generate your SVG.</div>
+            </div>
+          </div>
+          <div id="svgwrap" class="viewport"></div>
+
+          <!-- Working + Progress -->
+          <div id="working" class="working" aria-live="polite"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v3m0 12v3m9-9h-3M6 12H3m13.364 6.364l-2.121-2.121M8.757 8.757L6.636 6.636m10.728 0l-2.121 2.121M8.757 15.243l-2.121 2.121"/></svg> <span id="workText">Working…</span></div>
+          <div id="progress" class="progress" aria-hidden="true">
+            <div id="barWrap" class="bar" aria-label="Vectorization progress"><span id="bar"></span></div>
+            <div class="steps">
+              <span id="step0" class="chip">Preprocess</span>
+              <span id="step1" class="chip">Quantize</span>
+              <span id="step2" class="chip">Trace</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <canvas id="work" class="hidden"></canvas>
+    </section>
+  </main>
+
+  <!-- ImageTracer loader -->
+  <script>
+    (function loadImageTracer(){
+      function inject(src, onload){ var s=document.createElement('script'); s.src=src; s.defer=true; s.onload=onload; s.onerror=function(){ onload(new Error('Failed '+src)); }; document.head.appendChild(s); }
+      function ready(){ return typeof window.ImageTracer !== 'undefined'; }
+      function enable(){ document.getElementById('runBtn').textContent='Vectorize'; document.getElementById('runBtn').disabled=false; }
+      if(ready()){ enable(); return; }
+      inject('https://unpkg.com/imagetracerjs/imagetracer_v1.2.6.min.js', function(){ if(ready()) return enable();
+        inject('https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js', function(){ if(ready()) enable(); else { const e=document.getElementById('err'); e.classList.remove('hidden'); e.textContent='Could not load vectorization engine.'; }});
+      });
+    })();
+  </script>
+
+  <!-- Core app (perceptual palette + hue separation + caching) -->
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const st = { k:12, smooth:1, whiteT:245, blackT:25, desat:false, lt:1.0, qt:1.0, omit:8, rc:1, autoprev:true, file:null, svg:null, imgReady:false, working:false,
+                 distinctPalette:true, lockWB:true, minDelta:18, hueSep:25, chromaFloor:12 };
+
+    const BUILTINS = [
+      { name:'Logo / Flat',   s:{k:8,  smooth:0, whiteT:250, blackT:15, desat:false, lt:1.2, qt:1.6, omit:8,  rc:1.0, minDelta:22, hueSep:30, chromaFloor:16}},
+      { name:'Poster / Text', s:{k:14, smooth:1, whiteT:245, blackT:25, desat:false, lt:1.3, qt:1.6, omit:10, rc:1.0, minDelta:20, hueSep:28, chromaFloor:14}},
+      { name:'Illustration',  s:{k:24, smooth:1, whiteT:242, blackT:22, desat:false, lt:1.0, qt:1.0, omit:8,  rc:1.0, minDelta:18, hueSep:22, chromaFloor:12}},
+      { name:'Pixel Art',     s:{k:12, smooth:0, whiteT:255, blackT:0,  desat:false, lt:0.8, qt:0.8, omit:0,  rc:0.5, minDelta:24, hueSep:34, chromaFloor:18}}
+    ];
+    const LS_KEY='pv_presets_v1';
+
+    // Lightweight caches to skip recomputing when only vector settings change
+    const cache = {
+      imgKey:null, prepKey:null, quantKey:null,
+      w:0, h:0,
+      baseImData:null, // preprocessed + smoothed ImageData
+      lab:null,        // Float32Array of L,a,b per pixel (base)
+      palette:null,    // last palette
+      idxMap:null,     // Uint16Array index map
+      qImData:null     // quantized ImageData (used for tracing)
+    };
+
+    function loadCustomPresets(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || []; }catch(e){ return []; } }
+    function saveCustomPresets(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+    function populatePresetSelect(selectName=null){
+      const sel = $('presetSelect'); sel.innerHTML='';
+      const bgrp=document.createElement('optgroup'); bgrp.label='Built-in';
+      BUILTINS.forEach((p,i)=>{ const opt=document.createElement('option'); opt.value='b:'+i; opt.textContent=p.name; bgrp.appendChild(opt); });
+      sel.appendChild(bgrp);
+      const custom=loadCustomPresets();
+      if(custom.length){
+        const cgrp=document.createElement('optgroup'); cgrp.label='Custom';
+        custom.forEach((p,i)=>{ const opt=document.createElement('option'); opt.value='c:'+i; opt.textContent=p.name; cgrp.appendChild(opt); });
+        sel.appendChild(cgrp);
+      }
+      if(selectName){ [...sel.options].forEach((o)=>{ if(o.textContent===selectName) sel.value=o.value; }); } else sel.selectedIndex=0;
+    }
+    function applySettings(S){ Object.assign(st, S); sync(); scheduleRun(); }
+
+    /* ---------- Progress helpers ---------- */
+    function showProgress(show){
+      $('working').classList.toggle('show', show);
+      $('progress').classList.toggle('show', show);
+      if(!show){ setBar(0); setStep(0,'idle'); setStep(1,'idle'); setStep(2,'idle'); }
+    }
+    function setBar(p){ $('bar').style.width = Math.max(0, Math.min(100, p)) + '%'; }
+    function setStep(i, state){
+      const el = $('step'+i);
+      el.classList.remove('active','done');
+      if(state==='active') el.classList.add('active');
+      if(state==='done') el.classList.add('done');
+    }
+
+
+
+    /* ---------- Ensure cache object ---------- */
+    if(!window.cache){ window.cache = { prepKey: null, quantKey: null }; }
+
+    /* ---------- Progress planning & messaging ---------- */
+    function setWorkText(t){
+      const el=$('workText'); if(!el) return;
+      el.textContent = t;
+    }
+    function setBarPulse(on){
+      const w=$('barWrap'); if(!w) return;
+      w.classList.toggle('pulse', !!on);
+    }
+    // Extend setStep to support 'cached','queued','skip'
+    const _orig_setStep = setStep;
+    setStep = function(i, state){
+      const el = $('step'+i); if(!el) return;
+      el.classList.remove('active','done','cached','queued','skip');
+      if(state==='active') el.classList.add('active');
+      else if(state==='done') el.classList.add('done');
+      else if(state==='cached') el.classList.add('cached');
+      else if(state==='queued') el.classList.add('queued');
+      else if(state==='skip') el.classList.add('skip');
+    };
+
+    function computeKeys(){
+      if(!st.file || !$('raster').naturalWidth) return null;
+      const img=$('raster');
+      const MAX=3000; const scale=Math.min(1, MAX/Math.max(img.naturalWidth||1, img.naturalHeight||1));
+      const cw=Math.max(1,Math.round((img.naturalWidth||1)*scale));
+      const ch=Math.max(1,Math.round((img.naturalHeight||1)*scale));
+      const imgKey = `${img.naturalWidth}x${img.naturalHeight}|${st.file?.name||''}|${img.src?.length||0}`;
+      const prepKey = `${imgKey}|prep:${st.whiteT}-${st.blackT}-${st.desat}-${st.smooth}`;
+      const quantKey = `${prepKey}|quant:k${st.k}|lock${+st.lockWB}|d${st.minDelta}|distinct${+st.distinctPalette}|h${st.hueSep}|c${st.chromaFloor}`;
+      return {imgKey, prepKey, quantKey, cw, ch};
+    }
+
+    function planWork(){
+      const keys=computeKeys(); if(!keys) return null;
+      const willPrep = !(window.prepStore && prepStore.has(keys.prepKey));
+      const willQuant = cache.quantKey !== keys.quantKey;
+      const willTrace = true; // trace always runs to build SVG
+      const hits = [];
+      if(!willPrep) hits.push('preprocess');
+      if(!willQuant && cache.quantKey) hits.push('quantize');
+      const misses = [];
+      if(willPrep) misses.push('preprocess');
+      if(willQuant) misses.push('quantize');
+      misses.push('trace');
+      return {willPrep, willQuant, willTrace, hits, misses};
+    }
+
+    function previewNextRun(){
+      const p = planWork();
+      if(!p){ return; }
+      showProgress(true);
+      setBarPulse(true);
+      setBar(5);
+      setWorkText(p.willPrep||p.willQuant ? 'Queued: ' + p.misses.join(' + ') : 'Queued: trace-only update');
+      setStep(0, p.willPrep ? 'queued' : (cache.prepKey ? 'cached' : 'skip'));
+      setStep(1, p.willQuant ? 'queued' : (cache.quantKey ? 'cached' : 'skip'));
+      setStep(2, 'queued');
+    }
+
+
+    /* ---------- Preprocess result cache (v3.8.2) ---------- */
+    (function(){
+      if(!window.prepStore){ window.prepStore = new Map(); }
+      const MAX_PREP_ENTRIES = 4;
+      function stashPrep(key, value){
+        try{
+          const entry = { value, ts: Date.now() };
+          prepStore.set(key, entry);
+          // prune LRU
+          if(prepStore.size > MAX_PREP_ENTRIES){
+            let oldestK=null, oldest=Infinity;
+            for(const [k,v] of prepStore.entries()){
+              if(v.ts < oldest){ oldest=v.ts; oldestK=k; }
+            }
+            if(oldestK) prepStore.delete(oldestK);
+          }
+        }catch(e){ /* ignore cache errors */ }
+      }
+      function getPrep(key){
+        const entry = prepStore.get(key);
+        if(!entry) return null;
+        entry.ts = Date.now();
+        return entry.value;
+      }
+      // Patch a global preprocess() if it exists
+      try {
+        const __orig = window.preprocess;
+        if(typeof __orig === 'function' && !window.__preprocessPatched){
+          window.preprocess = async function(...args){
+            try{
+              const keys = (typeof computeKeys==='function') ? computeKeys() : null;
+              if(!keys || !keys.prepKey){
+                return await __orig.apply(this, args);
+              }
+              const hit = getPrep(keys.prepKey);
+              if(hit){
+                // Mark step as cached early if available
+                try{ setStep(0,'cached'); }catch(_){}
+                return hit;
+              }
+              const out = await __orig.apply(this, args);
+              stashPrep(keys.prepKey, out);
+              // track last used key for compatibility with existing logic
+              try{ window.cache.prepKey = keys.prepKey; }catch(_){}
+              return out;
+            }catch(e){
+              return await __orig.apply(this, args);
+            }
+          };
+          window.__preprocessPatched = true;
+        }
+      } catch(e) { /* no-op if preprocess not found */ }
+    })();
+
+    /* ---------- Responsive run scheduler ---------- */
+    let runToken = 0, runTimer = null;
+    const DEBOUNCE_MS = 200;
+
+    function scheduleRun(){
+      if(!st.autoprev) return;
+      if(runTimer) clearTimeout(runTimer);
+      previewNextRun();
+      runTimer = setTimeout(()=>{ runTimer=null; runCancelable(); }, DEBOUNCE_MS);
+    }
+    function yieldNow(ms=0){
+      return new Promise(res=>{
+        if(ms>0) return setTimeout(res, ms);
+        (window.requestAnimationFrame||setTimeout)(()=>res(), 0);
+      });
+    }
+    async function runCancelable(){
+      const myToken = ++runToken;
+      $('svgwrap').innerHTML='';
+      $('svgEmpty').style.display='none';
+      showProgress(true); setBarPulse(false); setWorkText('Starting…'); setBar(10);
+      await yieldNow();
+      try{
+        await run(myToken);
+      } finally {
+        if (myToken === runToken){ showProgress(false); setBarPulse(false); }
+      }
+    }
+
+    /* ---------- UI wiring ---------- */
+    $('presetSelect').addEventListener('change', (e)=>{
+      const v=e.target.value;
+      if(v.startsWith('b:')){ const i=+v.split(':')[1]; applySettings(BUILTINS[i].s); }
+      if(v.startsWith('c:')){ const i=+v.split(':')[1]; const arr=loadCustomPresets(); applySettings(arr[i].s); }
+    });
+    $('savePreset').addEventListener('click', ()=>{
+      const name = prompt('Preset name:'); if(!name) return;
+      const arr=loadCustomPresets();
+      const idx = arr.findIndex(p=>p.name.toLowerCase()===name.toLowerCase());
+      const obj={name, s:{k:st.k, smooth:st.smooth, whiteT:st.whiteT, blackT:st.blackT, desat:st.desat, lt:st.lt, qt:st.qt, omit:st.omit, rc:Math.min(st.rc,1), minDelta:st.minDelta, hueSep:st.hueSep, chromaFloor:st.chromaFloor}};
+      if(idx>=0) arr[idx]=obj; else arr.push(obj);
+      saveCustomPresets(arr); populatePresetSelect(name);
+    });
+
+    const sync = () => {
+      // Push state -> controls
+      $('k').value = st.k;
+      $('smooth').value = st.smooth;
+      $('whiteT').value = st.whiteT;
+      $('blackT').value = st.blackT;
+      $('ltres').value = st.lt;
+      $('qtres').value = st.qt;
+      $('pathomit').value = st.omit;
+      $('roundcoords').value = st.rc;
+      $('distinctPalette').checked = st.distinctPalette;
+      $('lockWB').checked = st.lockWB;
+      $('minDelta').value = st.minDelta;
+      $('hueSep').value = st.hueSep;
+      $('chromaFloor').value = st.chromaFloor;
+
+      // Readouts
+      $('kVal').textContent = st.k;
+      $('smoothVal').textContent = st.smooth;
+      $('wVal').textContent = st.whiteT;
+      $('bVal').textContent = st.blackT;
+      $('ltVal').textContent = st.lt.toFixed(2);
+      $('qtVal').textContent = st.qt.toFixed(2);
+      $('omitVal').textContent = st.omit;
+      $('rcVal').textContent = Math.min(st.rc, 1);
+      $('minDeltaVal').textContent = st.minDelta;
+      $('hueSepVal').textContent = st.hueSep;
+      $('chromaFloorVal').textContent = st.chromaFloor;
+
+      // Download visibility
+      const dl = $('downloadBtn');
+      dl.disabled = !st.svg;
+      dl.classList.toggle('disabled', !st.svg);
+      $('downloadBtnTop').style.display = st.svg ? 'inline-flex' : 'none';
+    };
+
+    for(const [id,prop,fmt] of [['k','k'],['smooth','smooth'],['whiteT','whiteT'],['blackT','blackT'],['ltres','lt',v=>+v],['qtres','qt',v=>+v],['pathomit','omit'],['roundcoords','rc']]){
+      $(id).addEventListener('input',e=>{ st[prop]=fmt?fmt(e.target.value):+e.target.value; sync(); scheduleRun();});
+    }
+    $('desat').addEventListener('change',e=>{ st.desat=e.target.checked; scheduleRun(); });
+    $('distinctPalette').addEventListener('change',e=>{ st.distinctPalette=e.target.checked; scheduleRun(); });
+    $('lockWB').addEventListener('change',e=>{ st.lockWB=e.target.checked; scheduleRun(); });
+    $('minDelta').addEventListener('input',e=>{ st.minDelta=+e.target.value; $('minDeltaVal').textContent=st.minDelta; scheduleRun(); });
+    $('hueSep').addEventListener('input',e=>{ st.hueSep=+e.target.value; $('hueSepVal').textContent=st.hueSep; scheduleRun(); });
+    $('chromaFloor').addEventListener('input',e=>{ st.chromaFloor=+e.target.value; $('chromaFloorVal').textContent=st.chromaFloor; scheduleRun(); });
+    $('autoprev').addEventListener('change',e=>{ st.autoprev=e.target.checked; });
+
+    $('resetAll').addEventListener('click',()=>{
+      Object.assign(st, {k:12,smooth:1,whiteT:245,blackT:25,desat:false,lt:1.0,qt:1.0,omit:8,rc:1,distinctPalette:true,lockWB:true,minDelta:18,hueSep:25,chromaFloor:12});
+      sync(); scheduleRun();
+    });
+
+    $('downloadBtn').addEventListener('click', ()=>{
+      if(!st.svg) return; const blob=new Blob([st.svg],{type:"image/svg+xml;charset=utf-8"});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(st.file?.name?.replace(/\.[^.]+$/,'')||'vectorized')+'.svg'; a.click(); URL.revokeObjectURL(url);
+    });
+    $('downloadBtnTop').addEventListener('click', ()=>{ $('downloadBtn').click(); });
+
+    // File handling + drop
+    $('file').addEventListener('change',ev=>{ handleFile(ev.target.files?.[0]||null); });
+    const dropZone = document.querySelector('#rasterEmpty');
+    ['dragenter','dragover'].forEach(evt=>dropZone.addEventListener(evt,e=>{ e.preventDefault(); dropZone.style.border='2px dashed rgba(255,255,255,.45)'; }));
+    ;['dragleave','drop'].forEach(evt=>dropZone.addEventListener(evt,e=>{ e.preventDefault(); dropZone.style.border=''; }));
+    dropZone.addEventListener('drop',e=>{ const f=e.dataTransfer.files?.[0]; if(f) handleFile(f); });
+
+    function handleFile(f){
+      st.file=f||null; st.svg=null; st.imgReady=false; sync();
+      $('svgwrap').innerHTML=''; $('svgEmpty').style.display='grid';
+      // bust caches
+      cache.imgKey = cache.prepKey = cache.quantKey = null;
+      cache.baseImData = cache.lab = cache.palette = cache.idxMap = cache.qImData = null;
+
+      if(!f){
+        $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid'; $('raster').src=''; updateMeta(); return;
+      }
+      const r=new FileReader();
+      r.onload=()=>{
+        $('raster').onload=async ()=>{
+          st.imgReady=true;
+          $('rasterWrap').style.display='flex';
+          $('rasterEmpty').style.display='none';
+          updateMeta();
+          await new Promise(res=>(window.requestAnimationFrame||setTimeout)(res,0));
+          if(st.autoprev) runCancelable();
+        };
+        $('raster').src=String(r.result);
+      };
+      r.readAsDataURL(f);
+    }
+
+    function updateMeta(){
+      const el=$('rasterMeta');
+      if(st.file && $('raster').naturalWidth){
+        el.textContent = `${st.file.name} — ${$('raster').naturalWidth}×${$('raster').naturalHeight}px`;
+      } else el.textContent = 'No image loaded';
+    }
+
+    $('resetBtn').addEventListener('click', ()=>{
+      st.file=null; st.svg=null; st.imgReady=false;
+      $('file').value=''; $('raster').src='';
+      $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid';
+      $('svgwrap').innerHTML=''; $('svgEmpty').style.display='grid';
+      updateMeta(); sync();
+      cache.imgKey = cache.prepKey = cache.quantKey = null;
+      cache.baseImData = cache.lab = cache.palette = cache.idxMap = cache.qImData = null;
+    });
+
+    function alertErr(msg){ const e=$('err'); e.classList.remove('hidden'); e.textContent=msg; setTimeout(()=>e.classList.add('hidden'),5000); }
+
+    /* ---------- Color math ---------- */
+    function srgbToXyz(c){ c=c/255; return c<=0.04045? c/12.92 : Math.pow((c+0.055)/1.055,2.4); }
+    function rgb2lab(r,g,b){ let R=srgbToXyz(r),G=srgbToXyz(g),B=srgbToXyz(b);
+      let X=R*0.4124564 + G*0.3575761 + B*0.1804375, Y=R*0.2126729 + G*0.7151522 + B*0.0721750, Z=R*0.0193339 + G*0.1191920 + B*0.9503041;
+      const xr=X/0.95047, yr=Y/1.00000, zr=Z/1.08883; function f(t){ return t>0.008856? Math.pow(t,1/3):(7.787*t+16/116); }
+      const fx=f(xr), fy=f(yr), fz=f(zr); return [116*fy-16, 500*(fx-fy), 200*(fy-fz)];
+    }
+    function lab2rgb(L,a,b){
+      let fy=(L+16)/116, fx=a/500 + fy, fz=fy - b/200;
+      function finv(t){ const t3=t*t*t; return t3>0.008856? t3 : (t-16/116)/7.787; }
+      const xr=finv(fx), yr=finv(fy), zr=finv(fz);
+      const X=xr*0.95047, Y=yr*1.00000, Z=zr*1.08883;
+      let R= 3.2404542*X + (-1.5371385)*Y + (-0.4985314)*Z;
+      let G=(-0.9692660)*X +  1.8760108*Y +  0.0415560*Z;
+      let B= 0.0556434*X + (-0.2040259)*Y +  1.0572252*Z;
+      function clamp(v){ return Math.max(0,Math.min(255, Math.round((v<=0.0031308? 12.92*v : 1.055*Math.pow(v,1/2.4)-0.055)*255))); }
+      return [clamp(R),clamp(G),clamp(B)];
+    }
+    function lab2lch(L,a,b){ const C=Math.sqrt(a*a+b*b); let H=Math.atan2(b,a)*180/Math.PI; if(H<0) H+=360; return [L,C,H]; }
+    function hueDiff(h1,h2){ let d=Math.abs(h1-h2); return d>180? 360-d : d; }
+
+    // CIEDE2000 ΔE00 (perceptual)
+    function deltaE00(l1,l2){
+      const L1=l1[0], a1=l1[1], b1=l1[2], L2=l2[0], a2=l2[1], b2=l2[2];
+      const C1=Math.hypot(a1,b1), C2=Math.hypot(a2,b2);
+      const Cm=(C1+C2)/2;
+      const G=0.5*(1-Math.sqrt(Math.pow(Cm,7)/(Math.pow(Cm,7)+Math.pow(25,7))));
+      const a1p=(1+G)*a1, a2p=(1+G)*a2;
+      const C1p=Math.hypot(a1p,b1), C2p=Math.hypot(a2p,b2);
+      const h1p=(Math.atan2(b1,a1p)*180/Math.PI+360)%360;
+      const h2p=(Math.atan2(b2,a2p)*180/Math.PI+360)%360;
+      const dLp=L2-L1;
+      const dCp=C2p-C1p;
+      let dhp=0; if(C1p*C2p===0){ dhp=0; } else {
+        let d=h2p-h1p; if(d>180) d-=360; if(d<-180) d+=360; dhp=d;
+      }
+      const dHp=2*Math.sqrt(C1p*C2p)*Math.sin((dhp*Math.PI/180)/2);
+      const Lpm=(L1+L2)/2;
+      const Cpm=(C1p+C2p)/2;
+      let hpm=0; if(C1p*C2p===0){ hpm=h1p+h2p; } else {
+        const d=Math.abs(h1p-h2p); if(d<=180) hpm=(h1p+h2p)/2; else hpm=((h1p+h2p+360*(h1p+h2p<360?1:-1))/2);
+      }
+      const T=1 - 0.17*Math.cos((hpm-30)*Math.PI/180) + 0.24*Math.cos(2*hpm*Math.PI/180) + 0.32*Math.cos((3*hpm+6)*Math.PI/180) - 0.20*Math.cos((4*hpm-63)*Math.PI/180);
+      const dTheta=30*Math.exp(-Math.pow((hpm-275)/25,2));
+      const Rc=2*Math.sqrt(Math.pow(Cpm,7)/(Math.pow(Cpm,7)+Math.pow(25,7)));
+      const Sl=1 + (0.015*Math.pow(Lpm-50,2))/Math.sqrt(20+Math.pow(Lpm-50,2));
+      const Sc=1 + 0.045*Cpm;
+      const Sh=1 + 0.015*Cpm*T;
+      const Rt = -Math.sin(2*dTheta*Math.PI/180) * Rc;
+      const kl=1, kc=1, kh=1;
+      const dE = Math.sqrt(
+        Math.pow(dLp/(kl*Sl),2) + Math.pow(dCp/(kc*Sc),2) + Math.pow(dHp/(kh*Sh),2) + Rt*(dCp/(kc*Sc))*(dHp/(kh*Sh))
+      );
+      return dE;
+    }
+
+    /* ---------- Distinct-first palette with hue separation ---------- */
+    function buildCandidatesFromLab(labBuf,w,h,stride=2){
+      const stats=new Map();
+      for(let y=0;y<h;y+=stride){
+        for(let x=0;x<w;x+=stride){
+          const i=(y*w+x)*3; const L=labBuf[i], a=labBuf[i+1], b=labBuf[i+2];
+          const key = `${Math.round(L*2)/2},${Math.round(a)},${Math.round(b)}`;
+          const s = stats.get(key) || {sum:[0,0,0],count:0};
+          s.sum[0]+=L; s.sum[1]+=a; s.sum[2]+=b; s.count++; stats.set(key,s);
+        }
+      }
+      const cands=[]; stats.forEach(v=>{ cands.push({ lab:[v.sum[0]/v.count, v.sum[1]/v.count, v.sum[2]/v.count], count:v.count }); });
+      cands.sort((a,b)=>b.count-a.count);
+      return cands;
+    }
+
+    function selectMaxDiversity(cands, k, {lockWB=true, minDelta=18, hueSep=25, chromaFloor=12, distinctMode=true}={}){
+      const palette=[]; const paletteLCH=[];
+      const take=(lab)=>{ palette.push(lab); paletteLCH.push(lab2lch(lab[0],lab[1],lab[2])); };
+
+      // Seed WB if present
+      if(lockWB){
+        const white = cands.find(c=>{const [L,a,b]=c.lab; return L>95 && Math.abs(a)<2 && Math.abs(b)<2;});
+        const black = cands.find(c=>c.lab[0]<10);
+        if(white) take(white.lab);
+        if(black && palette.length<k) take(black.lab);
+      }
+      if(palette.length===0 && cands.length) take(cands[0].lab);
+
+      const maxCnt=cands[0]?.count||1;
+      let relaxHue=false; // single-step relaxation
+
+      while(palette.length<k && cands.length){
+        let best=null, bestScore=-1;
+        for(const c of cands){
+          const L=c.lab[0], a=c.lab[1], b=c.lab[2];
+          const LCH=lab2lch(L,a,b); const C=LCH[1], H=LCH[2];
+          const isWB = (L>95 && Math.abs(a)<2 && Math.abs(b)<2) || (L<10);
+          if(distinctMode && !isWB && C < chromaFloor) continue;
+
+          // Distance to chosen palette
+          let dmin=1e9; for(const p of palette){ const d=deltaE00(c.lab, p); if(d<dmin) dmin=d; }
+
+          // Enforce hue spacing among chromatic colors
+          let hueOK=true;
+          if(distinctMode && !relaxHue && paletteLCH.length){
+            for(const pl of paletteLCH){
+              if(pl[1]>=chromaFloor && C>=chromaFloor){
+                if(hueDiff(pl[2], H) < hueSep){ hueOK=false; break; }
+              }
+            }
+          }
+          if(!hueOK) continue;
+
+          const freqBoost = 0.12*(c.count/maxCnt);
+          const vividBoost = distinctMode ? (0.25*(C/100)) : 0;
+          const score = dmin + freqBoost + vividBoost;
+          if(dmin >= minDelta && score>bestScore){ best=c; bestScore=score; }
+        }
+        if(!best){
+          if(!relaxHue){ relaxHue=true; continue; } // relax hue spacing once
+          // Still nothing? pick by farthest ΔE00
+          for(const c of cands){ let dmin=1e9; for(const p of palette){ const d=deltaE00(c.lab,p); if(d<dmin) dmin=d; } if(dmin>bestScore){ best=c; bestScore=dmin; } }
+        }
+        take(best.lab);
+        // prune near-duplicates by ΔE00 and hue proximity
+        for(let i=cands.length-1;i>=0;i--){
+          const cc=cands[i].lab; const d=deltaE00(cc, best.lab);
+          const lch=lab2lch(cc[0],cc[1],cc[2]); const blch=lab2lch(best.lab[0],best.lab[1],best.lab[2]);
+          const hueNear = (lch[1]>=chromaFloor && blch[1]>=chromaFloor) && hueDiff(lch[2], blch[2]) < hueSep*0.8;
+          if(d < minDelta*0.8 || hueNear) cands.splice(i,1);
+        }
+        if(cands.length===0) break;
+      }
+      return palette.slice(0,k);
+    }
+
+    function refineMedoids(cands, palette, {chromaFloor=12}={}){
+      if(!palette.length) return palette;
+      const clusters=palette.map(()=>[]);
+      for(const c of cands){
+        let bi=0,bd=1e9; for(let i=0;i<palette.length;i++){ const d=deltaE00(c.lab, palette[i]); if(d<bd){bd=d;bi=i;} }
+        clusters[bi].push(c);
+      }
+      for(let i=0;i<palette.length;i++){
+        const cluster = clusters[i]; if(!cluster.length) continue;
+        // Choose medoid with slight bias toward chroma to avoid dull grays
+        let best=cluster[0], bestScore=1e18;
+        for(const a of cluster){
+          let sum=0; for(const b of cluster){ sum += deltaE00(a.lab,b.lab) * b.count; }
+          const C=lab2lch(a.lab[0],a.lab[1],a.lab[2])[1];
+          const penalty = C<chromaFloor? 1000 : 0;
+          const score=sum+penalty;
+          if(score<bestScore){ bestScore=score; best=a; }
+        }
+        palette[i]=best.lab;
+      }
+      return palette;
+    }
+
+    function quantizeFromLab(labBuf, w, h, k, {lockWB=true, minDelta=18, hueSep=25, chromaFloor=12, stride=2, distinctMode=true}={}){
+      const cands = buildCandidatesFromLab(labBuf, w, h, stride);
+      let palette = selectMaxDiversity(cands.slice(), k, {lockWB, minDelta, hueSep, chromaFloor, distinctMode});
+      palette = refineMedoids(cands, palette, {chromaFloor});
+
+      const N=w*h; const idxMap=new Uint16Array(N);
+      for(let i=0;i<N;i++){
+        const j=i*3; const p=[labBuf[j], labBuf[j+1], labBuf[j+2]];
+        let bi=0,bd=1e9; for(let c=0;c<palette.length;c++){ const d=deltaE00(p,palette[c]); if(d<bd){bd=d;bi=c;} }
+        idxMap[i]=bi;
+      }
+      // adjacency-aware smoothing: only flip if strong majority and target is perceptually comparable
+      const smoothOnce=(map)=>{
+        const out=new Uint16Array(map.length);
+        for(let y=0;y<h;y++){
+          for(let x=0;x<w;x++){
+            const i=y*w+x; const cur=map[i];
+            const nb=[]; if(x>0) nb.push(map[i-1]); if(x<w-1) nb.push(map[i+1]); if(y>0) nb.push(map[i-w]); if(y<h-1) nb.push(map[i+w]);
+            const cnt=new Map(); for(const v of nb){ cnt.set(v,(cnt.get(v)||0)+1); }
+            let maj=cur, count=cnt.get(cur)||0; for(const [v,c] of cnt){ if(c>count){count=c; maj=v;} }
+            if(maj!==cur && count>=3){
+              const j=i*3; const p=[labBuf[j],labBuf[j+1],labBuf[j+2]];
+              const dCur=deltaE00(p, palette[cur]);
+              const dMaj=deltaE00(p, palette[maj]);
+              out[i] = (dMaj <= dCur + 1.0) ? maj : cur;
+            } else out[i]=cur;
+          }
+        }
+        return out;
+      };
+      const idxMap2=smoothOnce(idxMap);
+
+      // Build quantized ImageData from palette
+      const q = new ImageData(w,h);
+      for(let i=0;i<w*h;i++){
+        const bi=idxMap2[i]; const [r,g,b]=lab2rgb(palette[bi][0], palette[bi][1], palette[bi][2]);
+        const k=i*4; q.data[k]=r; q.data[k+1]=g; q.data[k+2]=b; q.data[k+3]=255;
+      }
+      return {palette, idxMap:idxMap2, qImData:q};
+    }
+
+    /* ---------- Image smoothing ---------- */
+    function smoothImage(data,w,h,iters=1){
+      if(iters<=0) return data;
+      const out=new Uint8ClampedArray(data.length);
+      for(let t=0;t<iters;t++){
+        for(let y=0;y<h;y++){
+          for(let x=0;x<w;x++){
+            const i=(y*w+x)*4;
+            let accR=0,accG=0,accB=0,accA=0, cnt=0;
+            function add(xx,yy){ const j=(yy*w+xx)*4; accR+=data[j]; accG+=data[j+1]; accB+=data[j+2]; accA+=data[j+3]; cnt++; }
+            add(x,y); if(x>0) add(x-1,y); if(x<w-1) add(x+1,y); if(y>0) add(x,y-1); if(y<h-1) add(x,y+1);
+            out[i]=accR/cnt; out[i+1]=accG/cnt; out[i+2]=accB/cnt; out[i+3]=accA/cnt;
+          }
+        }
+        data.set(out);
+      }
+      return data;
+    }
+
+    /* ---------- SVG post-processor (safe & anti-seam) ---------- */
+    function postProcessSVG(svg, { bg = '#0a1224', strokeWidth = 0.35 } = {}) {
+      svg = svg.replace(/<svg([^>]*)>/, `<svg$1><style>*{shape-rendering:geometricPrecision}</style><rect width="100%" height="100%" fill="${bg}"/>`);
+      svg = svg.replace(/<path\b[^>]*>/g, (tag)=>{
+        let t = tag.replace(/\s+stroke(?:-width|-linejoin|-linecap)?="[^"]*"/gi, '');
+        t = t.replace(/style="([^"]*)"/gi, (m, style)=>{
+          const cleaned = style.replace(/stroke(?:-width|-linejoin|-linecap)?\s*:\s*[^;"]*;?/gi,'').trim().replace(/;{2,}/g,';').replace(/^;|;$/g,'');
+          return cleaned ? `style="${cleaned}"` : '';
+        });
+        const withStroke = t.replace(/<path\b([^>]*?)\sfill="([^"]+)"([^>]*)>/i, `<path $1 fill="$2" stroke="$2" stroke-width="${strokeWidth}" stroke-linejoin="round"$3>`);
+        return withStroke;
+      });
+      return svg;
+    }
+
+    /* ---------- Hover help injection ---------- */
+    const HELP = {
+      k: "Sets the number of output colors. Lower values create flat, posterized art and smaller SVGs; higher preserves gradients and detail but adds paths.",
+      smooth: "Applies a quick neighborhood blur before quantization to reduce speckles. Higher values can soften sharp edges.",
+      whiteT: "Pushes very light pixels to pure white. Great for paper scans and UIs; too high may erase highlights.",
+      blackT: "Pulls very dark pixels to pure black. Good for text/line art; too high may crush shadow detail.",
+      desat: "Converts to grayscale before palette selection. Useful for diagrams; results in fewer colors and simpler shapes.",
+      distinctPalette: "Picks palette colors that are far apart using ΔE00 (perceptual).",
+      lockWB: "Forces pure white and pure black into the palette when present. Keeps backgrounds clean and text crisp.",
+      minDelta: "Minimum perceptual distance (ΔE00) enforced between palette entries. Higher = more distinct colors.",
+      hueSep: "Minimum angular distance between palette hues (in LCh°) for chromatic colors. Prevents picking colors of the same hue.",
+      chromaFloor: "Reject colors below this chroma (LCh C) unless white/black. Avoids muddy grays and enforces vividness.",
+      ltres: "Tolerance for straight segments. Lower = tighter fit (more nodes); higher = simpler geometry.",
+      qtres: "Tolerance for quadratic curves. Lower keeps wavy detail; higher simplifies curves into smoother shapes.",
+      pathomit: "Drops very small paths below this area threshold. Higher removes speckles; too high can lose fine dots/accents.",
+      roundcoords: "Rounds SVG coordinates to fewer decimals. Smaller numbers shrink file size but can introduce stair-stepping.",
+      autoprev: "Re-runs vectorization while you adjust sliders (debounced). Turn off for large changes, then click Vectorize."
+    };
+
+    function makeHelp(text){
+      const wrap=document.createElement('span'); wrap.className='help';
+      const q=document.createElement('span'); q.className='q'; q.setAttribute('tabindex','0'); q.textContent='?';
+      const tip=document.createElement('div'); tip.className='tip'; tip.innerHTML=text;
+      wrap.appendChild(q); wrap.appendChild(tip); return wrap;
+    }
+
+    function addTooltipFor(id){
+      const el=$(id); if(!el) return;
+      let anchor=null;
+      if(['k','smooth','whiteT','blackT','ltres','qtres','pathomit','roundcoords'].includes(id)){
+        anchor = el.previousElementSibling; // .label-row
+      } else if(['desat','distinctPalette','lockWB'].includes(id)){
+        anchor = el.parentElement; // the inline label
+      } else if(['minDelta','hueSep','chromaFloor'].includes(id)){
+        anchor = el.parentElement; // the flex row containing slider + value
+      } else if(id==='autoprev'){
+        anchor = el.parentElement; // the inline label
+      }
+      if(anchor){ anchor.appendChild(makeHelp(HELP[id]||'')); }
+    }
+
+    function injectHoverHelp(){
+      document.querySelectorAll('details.hint').forEach(n=>n.remove());
+      ['k','smooth','whiteT','blackT','desat','distinctPalette','lockWB','minDelta','hueSep','chromaFloor','ltres','qtres','pathomit','roundcoords','autoprev']
+        .forEach(addTooltipFor);
+    }
+
+    /* ---------- Helpers ---------- */
+    function cloneImageData(src){ return new ImageData(new Uint8ClampedArray(src.data), src.width, src.height); }
+
+    /* ---------- Main pipeline with caching & progress ---------- */
+    async function run(myToken){
+      if(!st.file || !st.imgReady) return;
+      if(typeof window.ImageTracer==='undefined'){ alertErr('Vectorization engine not loaded'); return; }
+      if(st.working) return;
+      st.working=true; const btn=$('runBtn'); btn.textContent='Vectorizing…'; btn.disabled=true;
+
+      try{
+        const img=$('raster'), canvas=$('work'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+        const MAX=3000; const scale=Math.min(1, MAX/Math.max(img.naturalWidth||1, img.naturalHeight||1));
+        canvas.width=Math.max(1,Math.round((img.naturalWidth||1)*scale));
+        canvas.height=Math.max(1,Math.round((img.naturalHeight||1)*scale));
+
+        const imgKey = `${img.naturalWidth}x${img.naturalHeight}|${st.file?.name||''}|${img.src?.length||0}`;
+        const prepKey = `${imgKey}|prep:${st.whiteT}-${st.blackT}-${st.desat}-${st.smooth}`;
+        const quantKey = `${prepKey}|quant:k${st.k}|lock${+st.lockWB}|d${st.minDelta}|distinct${+st.distinctPalette}|h${st.hueSep}|c${st.chromaFloor}`;
+
+        // Draw once
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        await yieldNow();
+
+        // Preprocess stage (cacheable)
+        if(cache.prepKey !== prepKey){
+          setStep(0,'active'); setBarPulse(false); setWorkText((window.prepStore&&computeKeys&&prepStore.has(computeKeys().prepKey))?'Preprocess (cache)…':'Preprocess…'); setBar(20);
+          let imdata=ctx.getImageData(0,0,canvas.width,canvas.height);
+          // WB snap + optional desat
+          const d=imdata.data;
+          for(let i=0;i<d.length;i+=4){
+            let r=d[i], g=d[i+1], b=d[i+2], a=d[i+3]; if(a<10) continue;
+            if(st.desat){ const y=(0.2126*r+0.7152*g+0.0722*b)|0; r=g=b=y; }
+            const max=Math.max(r,g,b), min=Math.min(r,g,b); const s=max===0?0:(max-min)/max;
+            if((r>=st.whiteT&&g>=st.whiteT&&b>=st.whiteT) || (s<0.12 && r>=st.whiteT-5&&g>=st.whiteT-5&&b>=st.whiteT-5)){ r=g=b=255; }
+            else if((r<=st.blackT&&g<=st.blackT&&b<=st.blackT) || (s<0.12 && r<=st.blackT+5&&g<=st.blackT+5&&b<=st.blackT+5)){ r=g=b=0; }
+            d[i]=r; d[i+1]=g; d[i+2]=b;
+          }
+          smoothImage(imdata.data, canvas.width, canvas.height, st.smooth);
+          cache.baseImData = cloneImageData(imdata);
+          cache.w=canvas.width; cache.h=canvas.height;
+          // Build LAB buffer once
+          const N=cache.w*cache.h; const lab=new Float32Array(N*3); const dd=cache.baseImData.data;
+          for(let i=0;i<N;i++){ const j=i*4; const L=rgb2lab(dd[j],dd[j+1],dd[j+2]); lab[i*3]=L[0]; lab[i*3+1]=L[1]; lab[i*3+2]=L[2]; }
+          cache.lab=lab;
+          cache.palette=null; cache.idxMap=null; cache.qImData=null;
+          cache.prepKey = prepKey; cache.imgKey = imgKey;
+          setBar(40); setStep(0,'done'); await yieldNow();
+        }
+
+        // Quantize stage (cacheable)
+        if(cache.quantKey !== quantKey){
+          setStep(1,'active'); setWorkText('Quantize…'); setBar(60);
+          const distinct = !!st.distinctPalette;
+          const {palette, idxMap, qImData} = (function(){
+            const res = quantizeFromLab(cache.lab, cache.w, cache.h, st.k, {lockWB:st.lockWB, minDelta:st.minDelta, hueSep:st.hueSep, chromaFloor:st.chromaFloor, stride:2, distinctMode:distinct});
+            return res;
+          })();
+          cache.palette=palette; cache.idxMap=idxMap; cache.qImData=qImData; cache.quantKey=quantKey;
+          setBar(80); setStep(1,'done'); await yieldNow();
+        }
+
+        // Trace (vectorize)
+        setStep(2,'active'); setWorkText('Trace…');
+        const svgraw = ImageTracer.imagedataToSVG(cache.qImData, {
+          numberofcolors: st.k, ltres: st.lt, qtres: st.qt, pathomit: st.omit,
+          blurradius: 0, blurdelta: 64, roundcoords: Math.min(st.rc, 1), viewbox: true, desc: true
+        });
+        const svgstr = postProcessSVG(svgraw, { bg: '#0a1224', strokeWidth: 0.35 });
+        st.svg=svgstr; $('svgwrap').innerHTML=svgstr; $('svgEmpty').style.display='none';
+        setBar(100); setStep(2,'done'); setWorkText('Done');
+      }catch(err){ console.error(err); alertErr("Vectorization failed — "+(err?.message||String(err))); }
+      finally{ st.working=false; const btn=$('runBtn'); btn.textContent='Vectorize'; btn.disabled=false; sync(); }
+    }
+
+    function init(){
+      // Attach manual Vectorize action (works even when Live preview is off)
+      try{ $('runBtn').addEventListener('click', ()=>{ runCancelable(); }); }catch(_){}
+
+      populatePresetSelect(); applySettings(BUILTINS[1].s); sync();
+      $('rasterWrap').style.display='none'; $('rasterEmpty').style.display='grid'; $('svgEmpty').style.display='grid';
+      injectHoverHelp();
+    }
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
