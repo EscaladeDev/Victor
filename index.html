@@ -83,15 +83,24 @@
 </head>
 <body class="min-h-screen selection:bg-slate-800/50">
 
+  <!-- Alpha Preview Banner -->
+  <div id="alphaBanner" role="alert" class="max-w-[1400px] mx-auto px-5 pt-4">
+    <div class="rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-100 px-4 py-3 flex items-start gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
+      </svg>
+      <div class="text-sm leading-snug">
+        <strong class="font-semibold tracking-wide">Alpha Preview:</strong>
+        This is an early build for testing. Features may change, results may be inaccurate, and data can be cleared at any time.
+        Please don’t share this link publicly.
+      </div>
+      <button id="alphaBannerClose" class="ml-auto es-badge hover:opacity-80" aria-label="Dismiss">Dismiss</button>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="max-w-[1400px] mx-auto px-5 py-6 flex items-center gap-4 flex-wrap">
-    <div class="logo-mark" aria-hidden="true">
-      <svg viewBox="0 0 48 48" width="30" height="30" xmlns="http://www.w3.org/2000/svg" fill="none">
-        <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#6d5dff"/><stop offset="1" stop-color="#00b3c6"/></linearGradient></defs>
-        <rect x="2" y="2" width="44" height="44" rx="8" fill="url(#g)" opacity=".12"/>
-        <path d="M14 12h14a6 6 0 0 1 0 12H14v4h14" stroke="url(#g)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
+    <!-- Removed the icon/logo block to satisfy request -->
     <div class="mr-auto">
       <div class="flex items-center gap-1">
         <h1 class="text-xl font-semibold tracking-tight">Escalade Vector Tools</h1>
@@ -223,7 +232,7 @@
 
           <!-- anti-seam -->
           <div class="mt-2">
-            <div class="label-row"><label class="text-sm">Anti‑seam overlap (px)</label><span id="seamVal" class="text-xs mono">0.45</span></div>
+            <div class="label-row"><label class="text-sm">Anti-seam overlap (px)</label><span id="seamVal" class="text-xs mono">0.45</span></div>
             <input id="seam" type="range" min="0" max="1.2" step="0.05" value="0.45" class="w-full mt-1" />
           </div>
 
@@ -313,6 +322,21 @@
       if(ready()){ enable(); return; }
       inject('https://unpkg.com/imagetracerjs/imagetracer_v1.2.6.min.js', function(){ if(ready()) return enable();
         inject('https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js', function(){ if(ready()) enable(); else { const e=document.getElementById('err'); e.classList.remove('hidden'); e.textContent='Could not load vectorization engine.'; }});
+      });
+    })();
+  </script>
+
+  <!-- Alpha Banner logic -->
+  <script>
+    (function(){
+      const KEY='alpha_banner_dismissed_v1';
+      const b=document.getElementById('alphaBanner');
+      const c=document.getElementById('alphaBannerClose');
+      if(!b||!c) return;
+      if(localStorage.getItem(KEY)==='1'){ b.style.display='none'; }
+      c.addEventListener('click', function(){
+        localStorage.setItem(KEY,'1');
+        b.style.display='none';
       });
     })();
   </script>
