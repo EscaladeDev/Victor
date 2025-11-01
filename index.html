@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Escalade — Vector Tools (v1.0.3 • hover help + distinct palette fix + caching)</title>
+  <title>Escalade — Vector Tools (v1.0.1 • hover help + distinct palette fix + caching)</title>
   <meta name="description" content="Escalade Vector Tools — raster→SVG vectorizer with hover help, perceptual ΔE00 palette with hue separation + chroma floor, adjacency-aware assignment, anti-seam export, responsive UI, progress, and caching." />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -80,6 +80,56 @@
     @keyframes pulse{0%{opacity:.35}50%{opacity:.95}100%{opacity:.35}}
 
   </style>
+
+<!-- No-gradients + logo hide overrides (baked-in) -->
+<style id="no-gradients">
+  /* Solid app background */
+  html, body {
+    background: var(--es-bg-2) !important;
+  }
+
+  /* Cards: faint solid surface, no blur/shine */
+  .card {
+    background: rgba(255,255,255,.02) !important;
+    box-shadow: 0 8px 30px rgba(2,6,23,.35) !important; /* keep depth, softer */
+    backdrop-filter: none !important;
+  }
+
+  /* Panels: remove dot/radial pattern/gradients */
+  .panel-body {
+    background: transparent !important;
+  }
+
+  /* Primary buttons, file button, progress bar, help badge: solid accent */
+  .es-btn-primary,
+  input[type=file]::file-selector-button,
+  .bar > span,
+  .help .q {
+    background: var(--es-accent) !important;
+    color: #02131a !important;
+    background-image: none !important;
+  }
+
+  /* Remove any gradient fills that snuck in via classes */
+  .es-btn-primary,
+  .logo-mark,
+  .bar > span {
+    background-image: none !important;
+  }
+
+  /* Keep ghost buttons transparent but crisp */
+  .es-btn-ghost { background: transparent !important; }
+
+  /* Progress track (not the fill) stays neutral */
+  .bar { background: rgba(255,255,255,.12) !important; }
+
+  /* Hide the top-left icon/logo block everywhere, in case it exists in other copies */
+  .logo-mark { display: none !important; }
+
+  /* Optional: tone down the header badge to match the flatter look */
+  .es-badge { background: transparent !important; }
+</style>
+
 </head>
 <body class="min-h-screen selection:bg-slate-800/50">
 
