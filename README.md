@@ -11,7 +11,7 @@ It runs entirely in the browser (no server component) and wraps [ImageTracer.js]
 - **Caching** between stages so preview tweaks stay fast
 - A clean **Escalade-style UI** with live preview, presets, and inline hover help
 
-> **Status:** Alpha preview. Expect rough edges and breaking changes.
+> **Status:** Alpha preview. Expect rough edges and changes.
 
 ---
 
