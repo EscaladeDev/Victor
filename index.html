@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Escalade — Vector Tools</title>
+  <meta name="description"
+    content="Escalade Vector Tools — raster→SVG vectorizer with perceptual palette, hue separation, anti-seam overlaps, responsive UI, progress, and caching." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --es-bg-1: #071028;
+      --es-bg-2: #071826;
+      --es-accent: #00b3c6;
+      --es-accent-2: #6d5dff;
+      --es-muted: #9fb0c8;
+      --es-border: rgba(255, 255, 255, .06);
+      --es-card: rgba(255, 255, 255, .02);
+    }
+
+    html,
+    body {
+      height: 100%;
+      background:
+        radial-gradient(1200px 800px at 10% 10%, rgba(13, 30, 50, .55), transparent 8%),
+        linear-gradient(180deg, var(--es-bg-1), var(--es-bg-2));
+      color: #e6f0f6;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .card {
+      border-radius: 1rem;
+      border: 1px solid var(--es-border);
+      background: linear-gradient(180deg, var(--es-card), transparent);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 8px 30px rgba(2, 6, 23, .6)
+    }
+
+    .es-badge {
+      font-size: .7rem;
+      padding: .25rem .55rem;
+      border-radius: .6rem;
+      border: 1px solid var(--es-border);
+      color: #9fb0c8
+    }
+
+    .es-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      border-radius: .7rem;
+      padding: .55rem .9rem;
+      font-weight: 700;
+      letter-spacing: .01em;
+      border: 1px solid rgba(255, 255, 255, .08);
+      cursor: pointer;
+      transition: transform .05s ease
+    }
+
+    .es-btn:active {
+      transform: translateY(1px)
+    }
+
+    .es-btn-primary {
+      background: linear-gradient(90deg, var(--es-accent-2), var(--es-accent));
+      color: #02131a
+    }
+
+    .es-btn-ghost {
+      color: #9fb0c8;
+      background: transparent
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+      color: #9fb0c8
+    }
+
+    .controls-grid {
+      display: grid;
+      gap: .75rem;
+      grid-template-columns: 1fr 1fr
+    }
+
+    @media (max-width:1024px) {
+      .controls-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
+    input[type=file]::file-selector-button {
+      background: linear-gradient(90deg, var(--es-accent-2), var(--es-accent));
+      color: #02131a;
+      padding: .45rem .7rem;
+      margin-right: .5rem;
+      border-radius: .55rem;
+      border: none;
+      font-weight: 700
+    }
+
+    .disabled {
+      opacity: .45;
+      pointer-events: none
+    }
+
+    /* Panels */
+    .panel-head {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+      padding: .7rem 1rem
+    }
+
+    .panel-title {
+      font-weight: 600
+    }
+
+    .panel-body {
+      position: relative;
+      padding: clamp(.5rem, 1.5vw, 1rem);
+      background:
+        linear-gradient(0deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .02)),
+        radial-gradient(circle at 25% 10%, rgba(255, 255, 255, .04) 0 1px, transparent 1px) top/18px 18px,
+        radial-gradient(circle at 75% 90%, rgba(255, 255, 255, .04) 0 1px, transparent 1px) top/18px 18px;
+    }
+
+    .viewport {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: clamp(40vh, 60vh, 70vh);
+      border-radius: .75rem;
+      background: rgba(2, 6, 23, .25)
+    }
+
+    .placeholder {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      gap: .6rem;
+      color: #b7c5d9
+    }
+
+    .placeholder svg {
+      opacity: .9
+    }
+
+    .ph-tip {
+      font-size: .85rem;
+      opacity: .9
+    }
+
+    .ph-actions {
+      display: flex;
+      gap: .5rem;
+      justify-content: center;
+      flex-wrap: wrap
+    }
+
+    .ph-chip {
+      font-size: .7rem;
+      border: 1px dashed rgba(255, 255, 255, .25);
+      padding: .25rem .5rem;
+      border-radius: .5rem
+    }
+
+    .img-frame {
+      max-height: 75vh;
+      max-width: 100%;
+      width: 100%;
+      object-fit: contain;
+      border-radius: .5rem;
+      box-shadow: 0 8px 26px rgba(2, 6, 23, .55)
+    }
+
+    #svgwrap {
+      max-height: 75vh;
+      overflow: auto;
+    }
+
+    #svgwrap svg {
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Working & progress */
+    .working {
+      position: absolute;
+      top: .75rem;
+      right: .75rem;
+      font-size: .75rem;
+      background: rgba(255, 255, 255, .08);
+      border: 1px solid rgba(255, 255, 255, .12);
+      padding: .25rem .5rem;
+      border-radius: .4rem;
+      display: none;
+    }
+
+    .working.show {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem
+    }
+
+    .progress {
+      display: none;
+      gap: .5rem;
+      align-items: center;
+      margin-top: .75rem
+    }
+
+    .progress.show {
+      display: flex
+    }
+
+    .bar {
+      position: relative;
+      flex: 1;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .12);
+      overflow: hidden
+    }
+
+    .bar>span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      background: linear-gradient(90deg, var(--es-accent-2), var(--es-accent));
+      border-radius: 999px;
+      transition: width .18s ease
+    }
+
+    .steps {
+      display: flex;
+      gap: .25rem;
+      flex-wrap: wrap
+    }
+
+    .chip {
+      font-size: .7rem;
+      padding: .15rem .45rem;
+      border-radius: .5rem;
+      border: 1px solid rgba(255, 255, 255, .18);
+      color: #cdd8e6;
+      opacity: .6
+    }
+
+    .chip.active {
+      opacity: 1;
+      border-color: rgba(255, 255, 255, .35)
+    }
+
+    .chip.done {
+      opacity: 1;
+      background: rgba(255, 255, 255, .09);
+      border-color: rgba(255, 255, 255, .25)
+    }
+
+    .chip.cached {
+      opacity: .9;
+      border-style: dashed;
+      border-color: rgba(255, 255, 255, .28)
+    }
+
+    .chip.queued {
+      opacity: 1;
+      border-color: var(--es-accent);
+      box-shadow: 0 0 0 1px rgba(0, 179, 198, .35) inset
+    }
+
+    .chip.skip {
+      opacity: .35
+    }
+
+    .bar.pulse>span {
+      width: 8%;
+      animation: pulse 1s ease-in-out infinite
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: .35
+      }
+
+      50% {
+        opacity: .95
+      }
+
+      100% {
+        opacity: .35
+      }
+    }
+
+    /* Hover help */
+    .help {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      margin-left: .35rem;
+      cursor: help;
+    }
+
+    .help .q {
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 12px;
+      line-height: 1;
+      color: #05101a;
+      background: linear-gradient(90deg, var(--es-accent-2), var(--es-accent));
+      border: 1px solid rgba(255, 255, 255, .12)
+    }
+
+    .help .tip {
+      position: absolute;
+      z-index: 40;
+      bottom: calc(100% + 8px);
+      right: 0;
+      min-width: 200px;
+      max-width: 320px;
+      padding: .5rem .6rem;
+      border-radius: .55rem;
+      background: rgba(8, 16, 32, .96);
+      border: 1px solid var(--es-border);
+      box-shadow: 0 10px 30px rgba(2, 6, 23, .55);
+      font-size: .78rem;
+      line-height: 1.35;
+      color: #cfe1ee;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity .15s ease, transform .15s ease;
+      pointer-events: none
+    }
+
+    .help:hover .tip,
+    .help:focus-within .tip {
+      opacity: 1;
+      transform: translateY(-8px);
+      pointer-events: auto
+    }
+
+    .help .tip:after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      right: 10px;
+      width: 10px;
+      height: 10px;
+      background: rgba(8, 16, 32, .96);
+      border-right: 1px solid var(--es-border);
+      border-bottom: 1px solid var(--es-border);
+      transform: translateY(-6px) rotate(45deg)
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .5rem
+    }
+
+    /* No-gradients + logo hide overrides (baked-in) */
+    html,
+    body.no-gradients {
+      background: var(--es-bg-2) !important;
+    }
+
+  </style>
+</head>
+
+<body class="min-h-screen selection:bg-slate-800/50">
+
+  <!-- Alpha Preview Banner -->
+  <div id="alphaBanner" role="alert" class="max-w-[1400px] mx-auto px-5 pt-4">
+    <div class="rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-100 px-4 py-3 flex items-start gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+      </svg>
+      <div class="text-sm leading-snug">
+        <strong class="font-semibold tracking-wide">Alpha Preview:</strong>
+        This is an early build for testing.
+      </div>
+      <button id="alphaBannerClose" class="ml-auto es-badge hover:opacity-80" aria-label="Dismiss">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="max-w-[1400px] mx-auto px-5 py-6 flex items-center gap-4 flex-wrap">
+    <div class="mr-auto">
+      <div class="flex items-center gap-1">
+        <h1 class="text-xl font-semibold tracking-tight">Escalade Vector Tools</h1>
+        <span class="es-badge ml-3">Private</span>
+      </div>
+      <p class="text-xs mono mt-0.5">Hybrid raster → SVG · Perceptual palette · v1.1.0</p>
+    </div>
+    <nav class="flex items-center gap-3">
+      <a href="https://donate.stripe.com/4gM4gBcmO1nG9PA5zF1B601" target="_blank" rel="noopener"
+        class="es-btn es-btn-primary">Tip the Developer</a>
+      <button id="downloadBtnTop" class="es-btn es-btn-ghost" style="display:none">Export SVG</button>
+    </nav>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-[1400px] mx-auto px-5 pb-14 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left controls -->
+    <aside class="lg:col-span-4 xl:col-span-3">
+      <section class="card p-6 sticky top-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Controls</h2>
+          <button id="resetAll" class="es-btn es-btn-ghost" title="Reset all to defaults">Reset</button>
+        </div>
+
+        <div class="flex items-center gap-2 mb-3">
+          <select id="presetSelect"
+            class="w-full bg-transparent border border-transparent rounded-md px-3 py-2 text-sm mono"></select>
+          <button id="savePreset" class="es-btn es-btn-ghost" title="Save current as preset">Save</button>
+        </div>
+
+        <label class="block text-sm text-slate-300">Upload image</label>
+        <div class="mt-2 flex items-center gap-2">
+          <input id="file" type="file" accept="image/*" class="block w-full text-sm" />
+          <button id="resetBtn" class="es-btn es-btn-ghost">Clear</button>
+        </div>
+        <p class="mt-2 text-xs mono">PNG · JPG · WebP. Images are scaled down to 3000px on the long edge.</p>
+
+        <!-- Step 1 -->
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold">1 • Preprocess & Quantize</h3>
+
+          <!-- K -->
+          <div class="mt-2">
+            <div class="label-row">
+              <label class="text-sm">Colors (K)</label>
+              <span id="kVal" class="text-xs mono">12</span>
+            </div>
+            <input id="k" type="range" min="2" max="64" step="1" value="12" class="w-full mt-1" />
+          </div>
+
+          <!-- Smoothing -->
+          <div class="mt-3">
+            <div class="label-row">
+              <label class="text-sm">Edge smoothing</label>
+              <span id="smoothVal" class="text-xs mono">1</span>
+            </div>
+            <input id="smooth" type="range" min="0" max="2" step="1" value="1" class="w-full mt-1" />
+          </div>
+
+          <!-- White/Black snap -->
+          <div class="controls-grid mt-3">
+            <div>
+              <div class="label-row">
+                <label class="text-sm">Snap near-white → white</label>
+                <span id="wVal" class="text-xs mono">245</span>
+              </div>
+              <input id="whiteT" type="range" min="200" max="255" step="1" value="245" class="w-full mt-1" />
+            </div>
+            <div>
+              <div class="label-row">
+                <label class="text-sm">Snap near-black → black</label>
+                <span id="bVal" class="text-xs mono">25</span>
+              </div>
+              <input id="blackT" type="range" min="0" max="80" step="1" value="25" class="w-full mt-1" />
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <label class="inline-flex items-center gap-2 text-xs mt-3 mono">
+            <input id="desat" type="checkbox" class="accent-slate-300" />
+            Desaturate first (grayscale)
+          </label>
+
+          <div class="mt-2 grid grid-cols-1 gap-2">
+            <label class="inline-flex items-center gap-2 text-xs mono">
+              <input id="distinctPalette" type="checkbox" class="accent-slate-300" checked />
+              Distinct-first palette (ΔE00)
+            </label>
+
+            <label class="inline-flex items-center gap-2 text-xs mono">
+              <input id="lockWB" type="checkbox" class="accent-slate-300" checked />
+              Lock near-white/near-black
+            </label>
+
+            <div class="flex items-center gap-2 text-xs mono">
+              <span>Min ΔE</span>
+              <input id="minDelta" type="range" min="8" max="36" step="1" value="18" class="w-full" />
+              <span id="minDeltaVal">18</span>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs mono">
+              <span>Hue separation (°)</span>
+              <input id="hueSep" type="range" min="0" max="60" step="1" value="25" class="w-full" />
+              <span id="hueSepVal">25</span>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs mono">
+              <span>Chroma floor</span>
+              <input id="chromaFloor" type="range" min="0" max="40" step="1" value="12" class="w-full" />
+              <span id="chromaFloorVal">12</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold">2 • Vectorize</h3>
+
+          <!-- ltres -->
+          <div class="mt-2">
+            <div class="label-row">
+              <label class="text-sm">Corner fidelity (ltres)</label>
+              <span id="ltVal" class="text-xs mono">1.00</span>
+            </div>
+            <input id="ltres" type="range" min="0.5" max="3" step="0.1" value="1.0" class="w-full mt-1" />
+          </div>
+
+          <!-- qtres -->
+          <div class="mt-2">
+            <div class="label-row">
+              <label class="text-sm">Curve smoothness (qtres)</label>
+              <span id="qtVal" class="text-xs mono">1.00</span>
+            </div>
+            <input id="qtres" type="range" min="0.5" max="3" step="0.1" value="1.0" class="w-full mt-1" />
+          </div>
+
+          <!-- pathomit -->
+          <div class="mt-2">
+            <div class="label-row">
+              <label class="text-sm">Despeckle / min area</label>
+              <span id="omitVal" class="text-xs mono">8</span>
+            </div>
+            <input id="pathomit" type="range" min="0" max="80" step="1" value="8" class="w-full mt-1" />
+          </div>
+
+          <!-- roundcoords -->
+          <div class="mt-2">
+            <div class="label-row">
+              <label class="text-sm">Coordinate precision</label>
+              <span id="rcVal" class="text-xs mono">1</span>
+            </div>
+            <input id="roundcoords" type="range" min="0" max="3" step="0.5" value="1" class="w-full mt-1" />
+          </div>
+
+          <!-- anti-seam -->
+          <div class="mt-2">
+            <div class="label-row">
+              <label class="text-sm">Anti-seam overlap (px)</label>
+              <span id="seamVal" class="text-xs mono">0.45</span>
+            </div>
+            <input id="seam" type="range" min="0" max="1.2" step="0.05" value="0.45" class="w-full mt-1" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4">
+          <label class="inline-flex items-center gap-2 text-sm mono">
+            <input id="autoprev" type="checkbox" class="accent-slate-300" checked />
+            Live preview
+          </label>
+          <button id="runBtn" class="es-btn es-btn-primary" disabled>Loading engine…</button>
+        </div>
+
+        <div id="err" class="hidden mt-3 text-xs text-rose-300 mono"></div>
+      </section>
+    </aside>
+
+    <!-- Right: Preview panels -->
+    <section class="lg:col-span-8 xl:col-span-9 space-y-4">
+
+      <!-- Raster panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4-4 4 4 8-8" />
+          </svg>
+          <div class="panel-title">Raster (input)</div>
+          <div class="ml-auto text-xs mono" id="rasterMeta"></div>
+        </div>
+        <div class="panel-body">
+          <div id="rasterEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 7h18M7 7l2-3h6l2 3M5 21h14a2 2 0 0 0 2-2V7H3v12a2 2 0 0 0 2 2Z" />
+              </svg>
+              <div class="ph-tip mt-2">Drag & drop an image here, or use <em>Upload image</em>.</div>
+              <div class="ph-actions mt-2">
+                <span class="ph-chip">PNG</span><span class="ph-chip">JPG</span><span class="ph-chip">WebP</span>
+              </div>
+            </div>
+          </div>
+          <div id="rasterWrap" class="viewport" style="display:none;">
+            <img id="raster" alt="uploaded image" class="img-frame" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Vector panel -->
+      <div class="card overflow-hidden">
+        <div class="panel-head">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M3 11h18M4 19h16" />
+          </svg>
+          <div class="panel-title">Vector (output)</div>
+          <div class="ml-auto">
+            <button id="downloadBtn" class="es-btn es-btn-ghost disabled" disabled>Download SVG</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="svgEmpty" class="placeholder viewport">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9 mx-auto" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6" />
+              </svg>
+              <div class="ph-tip mt-2">Click <strong>Vectorize</strong> to generate your SVG.</div>
+            </div>
+          </div>
+          <div id="svgwrap" class="viewport"></div>
+
+          <!-- Working + Progress -->
+          <div id="working" class="working" aria-live="polite">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v3m0 12v3m9-9h-3M6 12H3m13.364 6.364l-2.121-2.121M8.757 8.757L6.636 6.636m10.728 0l-2.121 2.121M8.757 15.243l-2.121 2.121" />
+            </svg>
+            <span id="workText">Working…</span>
+          </div>
+          <div id="progress" class="progress" aria-hidden="true">
+            <div id="barWrap" class="bar" aria-label="Vectorization progress">
+              <span id="bar"></span>
+            </div>
+            <div class="steps">
+              <span id="step0" class="chip">Preprocess</span>
+              <span id="step1" class="chip">Quantize</span>
+              <span id="step2" class="chip">Trace</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <canvas id="work" class="hidden"></canvas>
+    </section>
+  </main>
+
+  <!-- Scripts -->
+  <script src="scripts/core-state.js"></script>
+  <script src="scripts/progress.js"></script>
+  <script src="scripts/color-math.js"></script>
+  <script src="scripts/palette.js"></script>
+  <script src="scripts/image-utils.js"></script>
+  <script src="scripts/ui-help.js"></script>
+  <script src="scripts/ui-app.js"></script>
+  <script src="scripts/loader-imagetracer.js"></script>
+  <script src="scripts/alpha-banner.js"></script>
+</body>
+</html>
