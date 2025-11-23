@@ -44,14 +44,7 @@ It runs entirely in the browser (no server component) and wraps [ImageTracer.js]
 
 ## Getting Started
 
-### 1. Clone or download
+### 1. Use the website or download the repo
 
 > **Important:** See [Terms of Use](./TERMS_OF_USE.md) before using this code.  
 > Modification and redistribution are **not permitted**.
-
-Download the code and place it somewhere on your machine:
-
-```bash
-# example (if this were your private repo)
-git clone <your-private-repo-url>.git
-cd escalade-vector-new
