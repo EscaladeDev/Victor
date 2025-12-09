@@ -1,50 +1,62 @@
-# Escalade Vector Tools (Alpha)
+# Escalade Vector Tools (V1.0)
 
-Escalade Vector Tools is a client-side raster → SVG vectorizer with a perceptual color pipeline and a responsive, progress-aware UI.
+Escalade Vector Tools is a high-performance, client-side raster → SVG vectorizer. It runs entirely in the browser using Web Workers to process images up to 8K resolution without sending any data to a server.
 
-It runs entirely in the browser (no server component) and wraps [ImageTracer.js](https://github.com/jankovicsandras/imagetracerjs) with:
-
-- A **distinct-first perceptual palette** (CIEDE2000 ΔE00)
-- **Hue separation** + chroma floor to avoid muddy, near-duplicate colors
-- **Adjacency-aware color assignment** to reduce speckling
-- **Anti-seam SVG export** (fill-colored stroke overlap)
-- **Caching** between stages so preview tweaks stay fast
-- A clean **Escalade-style UI** with live preview, presets, and inline hover help
-
-> **Status:** Alpha preview. Expect rough edges and changes.
+> **Status:** Alpha. Runs locally in your browser.
 
 ---
 
-## Features
+## Key Features
 
-- 🎨 **Perceptual palette**
-  - Lab / LCh color math with ΔE00 distance
-  - Distinct-first palette selection with min ΔE, hue separation, and chroma floor
-  - Optional white/black locking for clean backgrounds and crisp text
+### 🎨 Perceptual Color Engine
+- **CIEDE2000 Distance:** Uses human-perceptual color math (Lab/LCh) rather than simple RGB distance.
+- **Smart Clustering:** Distinct-first palette selection avoids muddy, near-duplicate colors.
+- **Adjacency Awareness:** Reduces "speckling" by considering neighbor colors during quantization.
 
-- 🧩 **Smart quantization**
-  - Adjacency-aware smoothing on the palette index map
-  - Configurable number of colors (K), min ΔE, hue separation, chroma floor
+### ✏️ Advanced Vectorization
+- **Gaussian Smooth (New):** A slider to relax vector geometry organically, removing jagged "stair-steps" without the artificial "beveled" look of standard corner cutting.
+- **Border Pinning:** Automatically detects points on the canvas edge and locks them to preserve clean rectangular borders for posters/cards.
+- **Seam Protection:** Configurable stroke overlap to prevent white gaps between vector shapes.
 
-- ✏️ **Vectorization controls**
-  - Corner fidelity (`ltres`)
-  - Curve smoothness (`qtres`)
-  - Despeckle / minimum area (`pathomit`)
-  - Coordinate rounding (`roundcoords`)
-  - Anti-seam overlap (stroke width in px)
+### ⚡ Performance & Privacy
+- **Client-Side Only:** No images are ever uploaded. Your data stays on your machine.
+- **Web Workers:** Heavy processing runs in the background, keeping the UI responsive.
+- **8K Support:** Capable of processing large inputs (up to 8192px).
+- **Super-Sampling:** Optional 2x upscale before tracing for higher fidelity on low-res sources.
 
-- ⚙️ **Performance & UX**
-  - Client-side only (no uploads to a server)
-  - Drag & drop + file input
-  - Presets (built-in + custom, saved to `localStorage`)
-  - Live preview with debounced runs and stage-aware progress bar
-  - Hover tooltips for every key control
+---
+
+## User Interface & Controls
+
+### Source
+- **Input:** Drag & drop anywhere, Paste (Ctrl+V), or use the file picker.
+- **Resolution:** Set internal working resolution (1024px - 8192px).
+- **Super-Sample:** Upscales input 2x to capture finer details before vectorizing.
+
+### 1. Color Fidelity
+- **Colors (Max):** Target number of colors (K-means clustering).
+- **Splash Tolerance:** How strictly to group similar pixel colors before vectorizing.
+- **Min Area Size:** Removes small "dust" specks and noise islands.
+
+### 2. Geometry
+- **Accuracy (Fit):** Controls how closely the vector path hugs the original pixel grid.
+- **Corner Smooth:** Applies Gaussian smoothing passes to relax sharp angles.
+- **Roundness:** Controls curve interpretation (Quadratic Bezier vs. Straight Lines).
+- **Seam Thickness:** Adds a stroke to shapes to cover rendering gaps.
 
 ---
 
 ## Getting Started
 
-### 1. Use the website or download the repo
+1. **Open `index.html`** in any modern browser (Chrome/Edge/Firefox).
+2. **Drag and drop** an image onto the page.
+3. Adjust sliders to taste.
+   - *Tip:* Use "Hold to Compare" to see the original raster image.
+4. Click **Download SVG** to save your vector file.
 
-> **Important:** See [Terms of Use](./TERMS_OF_USE.md) before using this code.  
-> Modification and redistribution are **not permitted**.
+---
+
+## License & Terms
+
+See [Terms of Use](./TERMS_OF_USE.md).  
+*Modification and redistribution of this code are not permitted without authorization.*
