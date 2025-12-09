@@ -2,7 +2,7 @@
 
 Escalade Vector Tools is a high-performance, client-side raster → SVG vectorizer. It runs entirely in the browser using Web Workers to process images up to 8K resolution without sending any data to a server.
 
-> **Status:** Alpha. Runs locally in your browser.
+> **Status:** Alpha Build. Features may change or break. 
 
 ---
 
